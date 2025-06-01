@@ -7,13 +7,15 @@ const isProtectedRoute = createRouteMatcher([
   '/employees(.*)', // Protect employees
   '/assets(.*)',    // Protect assets
   '/roles(.*)',     // Protect roles
-  '/reports(.*)',   // Protect reports (if you add this page)
-  '/settings(.*)',  // Protect settings (if you add this page)
-  '/api/me(.*)'     // Keep existing protected API routes
+  '/reports(.*)',   // Protect reports
+  '/settings(.*)',  // Protect settings
+  '/api/me(.*)',    // Protect API routes
+  '/api/assets(.*)'  // Protect assets API routes
 ]);
 
-// Also make the Clerk webhooks route public
+// Make the Clerk webhooks route public
 const isPublicRoute = createRouteMatcher([
+  '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/webhooks/clerk(.*)' // Ensure webhook is public
@@ -30,5 +32,5 @@ export default clerkMiddleware(async (auth, req) => {
 });
 
 export const config = {
-  matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)']
-}
+  matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'],
+};

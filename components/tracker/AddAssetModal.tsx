@@ -1,72 +1,154 @@
+// components/tracker/AddAssetModal.tsx
 "use client";
-import React, { useState, useRef, ChangeEvent, DragEvent } from "react";
-import {
-  Briefcase,
-  Search,
-  X,
-  Check,
-  ChevronDown,
-  Image as ImageIcon,
-} from "lucide-react";
+import React, { useState, useRef, ChangeEvent, DragEvent, useEffect } from "react";
+import { Briefcase, Search, X, Check, ChevronDown, ImageIcon, MapPin, UserPlus } from "lucide-react";
 import Image from "next/image";
-import userImg from "../../public/next.svg"; // Updated import
+import userImgPlaceholder from "../../public/next.svg"; // Corrected path to access from public directory
+import { useOrganization, useOrganizationList, useUser } from "@clerk/nextjs";
 
-interface User {
-  name: string;
+// Define a simple type for organization members fetched from Clerk
+interface OrgMember {
+  id: string; // This will be clerkUserId
+  identifier: string; // email or username
+  firstName?: string | null;
+  lastName?: string | null;
+  imageUrl?: string;
   role: string;
-  email: string;
-  img: string;
-}
-
-interface Manager {
-  name: string;
-  img: string;
 }
 
 interface AddAssetModalProps {
   onClose: () => void;
+  onAssetAdded: () => void; // Callback to refresh asset list
 }
 
-const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose }) => {
+const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose, onAssetAdded }) => {
+  const { organization } = useOrganization(); // For current org ID
+  const { user } = useUser(); // For current user, if needed
+
   const [step, setStep] = useState(1);
   const [title, setTitle] = useState("");
   const [model, setModel] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [assetImageFile, setAssetImageFile] = useState<File | null>(null);
+  const [assetImagePreview, setAssetImagePreview] = useState<string | null>(null);
   const [description, setDescription] = useState("");
-  const [managerDropdownOpen, setManagerDropdownOpen] = useState(false);
-  const [selectedManager, setSelectedManager] = useState<Manager | null>(null);
-  const [errors, setErrors] = useState<{ [key: string]: boolean }>({});
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [status, setStatus] = useState("Active"); // Default status
+
+  const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
+  const [selectedAssigneeClerkId, setSelectedAssigneeClerkId] = useState<string | null>(null);
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
+
+  const [errors, setErrors] = useState<{ [key: string]: string | boolean }>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const fetchOrgMembers = async () => {
+      if (organization) {
+        try {
+          const memberships = await organization.getMemberships();
+          const members = memberships.data.map(mem => ({
+            id: mem.publicUserData.userId!, // Clerk User ID
+            identifier: mem.publicUserData.identifier,
+            firstName: mem.publicUserData.firstName,
+            lastName: mem.publicUserData.lastName,
+            imageUrl: mem.publicUserData.imageUrl,
+            role: mem.role,
+          }));
+          setOrgMembers(members);
+        } catch (error) {
+          console.error("Failed to fetch organization members:", error);
+        }
+      }
+    };
+    fetchOrgMembers();
+  }, [organization]);
+
   const validateStep1 = () => {
-    const newErrors: { [key: string]: boolean } = {};
-    if (!title.trim()) newErrors.title = true;
-    if (!model.trim()) newErrors.model = true;
-    if (!serialNumber.trim()) newErrors.serialNumber = true;
-    if (!profileImage) newErrors.profileImage = true;
-    if (!description.trim()) newErrors.description = true;
+    const newErrors: { [key: string]: string } = {};
+    if (!title.trim()) newErrors.title = "Title is required.";
+    if (!model.trim()) newErrors.model = "Model is required.";
+    if (!serialNumber.trim()) newErrors.serialNumber = "Serial number is required.";
+    if (!assetImageFile) newErrors.profileImage = "Asset image is required."; // Changed to profileImage for consistency with previous error key
+    if (!description.trim()) newErrors.description = "Description is required.";
+    if (latitude && isNaN(parseFloat(latitude))) newErrors.latitude = "Invalid latitude.";
+    if (longitude && isNaN(parseFloat(longitude))) newErrors.longitude = "Invalid longitude.";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleContinue = () => {
     if (validateStep1()) {
-      setStep(2);
+      setStep(2); // Assuming step 2 is for assignment or confirmation
+                   // For this structure, we might combine it if assignment is optional on create
+    }
+  };
+  
+  const handleFormSubmit = async () => {
+    if (!validateStep1()) return; // Re-validate before submission
+
+    if (!organization) {
+        setFormError("No active organization selected.");
+        return;
+    }
+    setIsLoading(true);
+    setFormError(null);
+
+    // For image upload, you'd typically use FormData
+    // However, for simplicity in this example, if you store image URLs, 
+    // you'd first upload the image to a storage service (e.g., Cloudinary, S3, Next.js public folder if small scale)
+    // and get back a URL. Here, we'll assume imageUrl is directly provided or handled elsewhere.
+    // For now, we'll just pass the filename or a placeholder.
+    // A more robust solution involves multipart/form-data for image uploads.
+
+    const assetData = {
+      title,
+      model,
+      serialNumber,
+      description,
+      status,
+      latitude: latitude ? parseFloat(latitude) : undefined,
+      longitude: longitude ? parseFloat(longitude) : undefined,
+      // imageUrl: assetImagePreview, // Or the URL from your storage service
+      assignedToClerkUserId: selectedAssigneeClerkId,
+      clerkOrganizationId: organization.id, // This comes from useOrganization()
+    };
+
+    try {
+      const response = await fetch('/api/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assetData),
+        credentials: 'include', // Add this to include auth cookies
+      });
+
+      if (!response.ok) {
+        const errorText = `Failed to create asset (${response.status})`;
+        console.error(errorText);
+        throw new Error(errorText);
+      }
+      onAssetAdded(); // Callback to refresh parent component's asset list
+      onClose(); // Close modal on success
+    } catch (error: any) {
+      setFormError(error.message || "An unexpected error occurred.");
+      console.error("Asset creation error:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleBack = () => {
-    setStep(1);
-  };
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setProfileImage(URL.createObjectURL(file));
+      setAssetImageFile(file);
+      setAssetImagePreview(URL.createObjectURL(file));
       setErrors(prev => ({...prev, profileImage: false}));
     }
   };
@@ -75,354 +157,196 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose }) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) {
-      setProfileImage(URL.createObjectURL(file));
+      setAssetImageFile(file);
+      setAssetImagePreview(URL.createObjectURL(file));
       setErrors(prev => ({...prev, profileImage: false}));
     }
   };
-
-
-  const toggleUser = (user: User) => {
-    setSelectedUsers((prev) =>
-      prev.find((u) => u.name === user.name)
-        ? prev.filter((u) => u.name !== user.name)
-        : [...prev, user]
-    );
-  };
-
-  const removeUser = (name: string) => {
-    setSelectedUsers((prev) => prev.filter((u) => u.name !== name));
-  };
-
-  const mockUsers: User[] = [
-    { name: "Ali Jouro", role: "Product Manager", email: "ali@company.com", img: userImg },
-    { name: "Sofia Lin", role: "UX Designer", email: "sofia@company.com", img: userImg },
-    { name: "Liam Ben", role: "Backend Dev", email: "liam@company.com", img: userImg },
-    { name: "Emily Rose", role: "HR Officer", email: "emily@company.com", img: userImg },
-    { name: "Rachel Zed", role: "Data Scientist", email: "rachel@company.com", img: userImg },
-  ];
-  const teamManagers: Manager[] = [
-      { name: "Ali Jouro", img: userImg },
-      { name: "Sofia Lin", img: userImg },
-      { name: "James Wu", img: userImg },
-    ];
-
-  const filteredUsers = mockUsers.filter(
-    (user) =>
-      `${user.name} ${user.role}`.toLowerCase().includes(searchQuery.toLowerCase())
+  
+  const filteredMembers = orgMembers.filter(member =>
+    `${member.firstName || ''} ${member.lastName || ''} ${member.identifier}`.toLowerCase().includes(memberSearchQuery.toLowerCase())
   );
 
-  const shouldShowList = dropdownOpen || searchQuery.length > 0;
+  const selectedAssigneeDetails = selectedAssigneeClerkId
+    ? orgMembers.find(m => m.id === selectedAssigneeClerkId)
+    : null;
+
+
+  // In a real app, step 2 would be distinct or part of a different flow (e.g., "Assign Asset" button on table row)
+  // For this modal, we'll assume assignment is done in Step 1 or directly on submit.
+  // The original two-step process was more for a different kind of invitation flow.
+  // We simplify by putting assignment directly in the asset creation form.
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center px-4">
-      <div className="bg-white w-[540px] max-w-[90%] rounded-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+      <div className="bg-white w-[600px] max-w-[95%] rounded-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-black"
+          className="absolute top-4 right-4 text-gray-500 hover:text-black disabled:opacity-50"
+          disabled={isLoading}
         >
           <X size={18} />
         </button>
 
-        {step === 1 ? (
-          <>
-            <div className="flex justify-center mb-4">
-              <div className="bg-[#e4f7ec] p-3 rounded-full">
-                <Briefcase size={22} className="text-[#34BC68]" />
-              </div>
+        {/* Simplified to one step for asset creation */}
+        <>
+          <div className="flex justify-center mb-4">
+            <div className="bg-[#e4f7ec] p-3 rounded-full">
+              <Briefcase size={22} className="text-[#34BC68]" />
             </div>
-
-            <h2 className="text-lg font-semibold text-center mb-1">Record New Asset</h2>
-            <p className="text-sm text-gray-600 text-center mb-6">
-              Invite employees to join this workspace and collaborate on managing assets efficiently.
-            </p>
-            <div className="space-y-4">
-                <label className="text-sm text-black font-medium">
-                  Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  value={title}
-                  onChange={(e) => {setTitle(e.target.value); setErrors(prev => ({...prev, title: false}));}}
-                  placeholder="What is your title?"
-                  className={`w-full border ${
-                    errors.title ? "border-red-400" : "border-gray-300"
-                  } rounded-md py-2 px-3 text-sm outline-none`}
-                />
-            </div>
-
-            <div className="flex space-x-4 my-4">
-              <div className="w-1/2">
-                <label className="text-sm font-medium text-black">
-                  Model <span className="text-red-500">*</span>
-                </label>
-                <input
-                  value={model}
-                  onChange={(e) => {setModel(e.target.value); setErrors(prev => ({...prev, model: false}));}}
-                  placeholder="Eg. Toshiba"
-                  className={`w-full border ${
-                    errors.model ? "border-red-400" : "border-gray-300"
-                  } rounded-md py-2 px-3 text-sm outline-none`}
-                />
-              </div>
-              <div className="w-1/2">
-                <label className="text-sm font-medium text-black">
-                  Serial Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  value={serialNumber}
-                  onChange={(e) => {setSerialNumber(e.target.value); setErrors(prev => ({...prev, serialNumber: false}));}}
-                  placeholder="Eg. 235894"
-                  className={`w-full border ${
-                    errors.serialNumber ? "border-red-400" : "border-gray-300"
-                  } rounded-md py-2 px-3 text-sm outline-none`}
-                />
-              </div>
-            </div>
-
-            <div className="mb-4">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-start">
-              <label className="text-sm font-medium text-black mb-2 sm:mb-0">
-                Asset Image <span className="text-red-500">*</span>
-              </label>
-
-              <div className="flex items-center space-x-3 sm:space-x-5">
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 rounded-full border border-gray-300 cursor-pointer"
-                >
-                  {profileImage ? (
-                    <Image
-                      src={profileImage}
-                      alt="Preview"
-                      width={48}
-                      height={48}
-                      className="rounded-full object-cover"
-                    />
-                  ) : (
-                    <ImageIcon size={20} className="text-gray-500" />
-                  )}
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                  />
-                </div>
-
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={handleImageDrop}
-                  className={`flex-grow border border-dashed ${errors.profileImage ? "border-red-400": "border-gray-300"} rounded-md p-2 cursor-pointer hover:border-[#6941C6] text-sm text-gray-500`}
-                >
-                  <p className="leading-snug text-center sm:text-left">
-                    <span className="text-[#6941C6] font-medium">Click to upload</span> or drag and
-                    drop PNG or JPG (max. 800 x 400px)
-                  </p>
-                </div>
-              </div>
-            </div>
-            {errors.profileImage && (
-              <p className="text-sm text-red-500 mt-1 text-right sm:text-left sm:ml-[calc(3rem+1.25rem)]">Asset image is required.</p>
-            )}
           </div>
 
+          <h2 className="text-lg font-semibold text-center mb-1">Record New Asset</h2>
+          <p className="text-sm text-gray-600 text-center mb-6">
+            Fill in the details for the new asset.
+          </p>
+
+          {formError && <p className="text-sm text-red-500 text-center mb-3">{formError}</p>}
+
+          <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium text-black">
-                Description <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => {setDescription(e.target.value); setErrors(prev => ({...prev, description: false}));}}
-                placeholder="Add your description"
-                className={`w-full border ${
-                  errors.description ? "border-red-400" : "border-gray-300"
-                } rounded-md py-2 px-3 text-sm outline-none min-h-[100px]`}
-              />
+              <label className="text-sm text-black font-medium">Title <span className="text-red-500">*</span></label>
+              <input value={title} onChange={(e) => { setTitle(e.target.value); setErrors(prev => ({ ...prev, title: false })); }} placeholder="e.g., Laptop, Office Desk"
+                className={`w-full border ${errors.title ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+              {errors.title && typeof errors.title === 'string' && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
             </div>
 
-            <div className="flex justify-center mb-4 space-x-2 mt-4">
-              <div className={`w-3 h-3 rounded-full ${step === 1 ? "bg-[#34BC68]" : "bg-gray-300"}`} />
-              <div className={`w-3 h-3 rounded-full ${step === 2 ? "bg-[#34BC68]" : "bg-gray-300"}`} />
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-3 mt-4">
-              <button
-                onClick={onClose}
-                className="px-4 sm:px-24 py-2 text-sm border border-gray-300 rounded-md bg-white text-black w-full sm:w-auto"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleContinue}
-                className="px-4 sm:px-24 py-2 text-sm rounded-md bg-black text-white w-full sm:w-auto"
-              >
-                Continue
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex justify-center -space-x-3 mb-4">
-              {[1, 2, 3].map((i) => (
-                <Image
-                  key={i}
-                  src={userImg} // Example, replace with actual assigned user images if available
-                  alt={`User ${i}`}
-                  width={36}
-                  height={36}
-                  className="w-9 h-9 rounded-full border-2 border-white"
-                />
-              ))}
-            </div>
-
-            <div className="text-center mb-6">
-              <h2 className="text-lg font-semibold text-black mb-1">Assign this asset</h2>
-              <p className="text-sm text-gray-600">
-                Select one or multiple employees to assign to this asset
-              </p>
-              <p className="text-sm text-[#34BC68] font-medium">
-                {title || "Asset Title"}
-              </p>
+            <div className="flex space-x-4">
+              <div className="w-1/2">
+                <label className="text-sm font-medium text-black">Model <span className="text-red-500">*</span></label>
+                <input value={model} onChange={(e) => { setModel(e.target.value); setErrors(prev => ({ ...prev, model: false })); }} placeholder="e.g., MacBook Pro 16 M3"
+                  className={`w-full border ${errors.model ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+                 {errors.model && typeof errors.model === 'string' && <p className="text-xs text-red-500 mt-1">{errors.model}</p>}
+              </div>
+              <div className="w-1/2">
+                <label className="text-sm font-medium text-black">Serial Number <span className="text-red-500">*</span></label>
+                <input value={serialNumber} onChange={(e) => { setSerialNumber(e.target.value); setErrors(prev => ({ ...prev, serialNumber: false })); }} placeholder="e.g., C02XXXXXXG8WP"
+                  className={`w-full border ${errors.serialNumber ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+                {errors.serialNumber && typeof errors.serialNumber === 'string' && <p className="text-xs text-red-500 mt-1">{errors.serialNumber}</p>}
+              </div>
             </div>
             
-             <div className="relative mb-4">
-                <label className="text-sm text-black font-medium">
-                  Select a Team Manager <span className="text-red-500">*</span>
-                </label>
-                <div
-                  className={`w-full border ${
-                    errors.manager ? "border-red-400" : "border-gray-300"
-                  } rounded-md py-2 px-3 text-sm flex justify-between items-center cursor-pointer`}
-                  onClick={() => setManagerDropdownOpen(!managerDropdownOpen)}
-                >
-                  <span>
-                    {selectedManager ? selectedManager.name : "Select manager"}
-                  </span>
-                  <ChevronDown size={16} className="text-gray-500" />
+            {/* Asset Image */}
+            <div className="mb-4">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-start">
+                <label className="text-sm font-medium text-black mb-2 sm:mb-0">Asset Image <span className="text-red-500">*</span></label>
+                <div className="flex items-center space-x-3 sm:space-x-5 w-full sm:w-auto">
+                  <div onClick={() => fileInputRef.current?.click()} className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 rounded-full border border-gray-300 cursor-pointer">
+                    {assetImagePreview ? (
+                      <Image src={assetImagePreview} alt="Preview" width={48} height={48} className="rounded-full object-cover" />
+                    ) : ( <ImageIcon size={20} className="text-gray-500" /> )}
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  </div>
+                  <div onClick={() => fileInputRef.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={handleImageDrop}
+                    className={`flex-grow border border-dashed ${errors.profileImage ? "border-red-400" : "border-gray-300"} rounded-md p-2 cursor-pointer hover:border-[#6941C6] text-sm text-gray-500`}>
+                    <p className="leading-snug text-center sm:text-left">
+                      <span className="text-[#6941C6] font-medium">Click to upload</span> or drag and drop
+                    </p>
+                  </div>
                 </div>
-
-                {managerDropdownOpen && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-sm max-h-40 overflow-auto">
-                    {teamManagers.map((mgr) => (
-                      <div
-                        key={mgr.name}
-                        className="flex items-center space-x-3 px-3 py-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => {
-                          setSelectedManager(mgr);
-                          setManagerDropdownOpen(false);
-                          setErrors(prev => ({...prev, manager: false}));
-                        }}
-                      >
-                        <Image
-                          src={mgr.img}
-                          alt={mgr.name}
-                          width={24}
-                          height={24}
-                          className="w-6 h-6 rounded-full object-cover"
-                        />
-                        <span className="text-sm">{mgr.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-
-            <p className="text-sm text-black mb-2 font-medium">Team members</p>
-
-            <div className="relative mb-4">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search team member"
-                className="w-full border border-gray-300 rounded-md py-2 pl-10 pr-10 text-sm outline-none"
-              />
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-              <ChevronDown
-                onClick={() => setDropdownOpen((prev) => !prev)}
-                className="absolute right-2 top-2.5 text-gray-500 cursor-pointer"
-                size={18}
-              />
+              {errors.profileImage && typeof errors.profileImage === 'string' && (
+                <p className="text-sm text-red-500 mt-1 text-right sm:text-left sm:ml-[calc(3rem+1.25rem)]">{errors.profileImage}</p>
+              )}
             </div>
 
-            {shouldShowList && (
-              <div className="space-y-3 mb-4 max-h-[200px] overflow-y-auto">
-                {filteredUsers.map((user) => {
-                  const isSelected = selectedUsers.some((u) => u.name === user.name);
-                  return (
+            <div>
+              <label className="text-sm font-medium text-black">Description <span className="text-red-500">*</span></label>
+              <textarea value={description} onChange={(e) => { setDescription(e.target.value); setErrors(prev => ({ ...prev, description: false })); }} placeholder="Detailed description of the asset"
+                className={`w-full border ${errors.description ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none min-h-[80px]`} />
+              {errors.description && typeof errors.description === 'string' && <p className="text-xs text-red-500 mt-1">{errors.description}</p>}
+            </div>
+
+            <div className="flex space-x-4">
+              <div className="w-1/2">
+                <label className="text-sm font-medium text-black flex items-center">
+                  <MapPin size={14} className="mr-1 text-gray-500" /> Latitude
+                </label>
+                <input type="number" value={latitude} onChange={(e) => setLatitude(e.target.value)} placeholder="e.g., 34.0522"
+                  className={`w-full border ${errors.latitude ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+                {errors.latitude && typeof errors.latitude === 'string' && <p className="text-xs text-red-500 mt-1">{errors.latitude}</p>}
+              </div>
+              <div className="w-1/2">
+                <label className="text-sm font-medium text-black flex items-center">
+                  <MapPin size={14} className="mr-1 text-gray-500" /> Longitude
+                </label>
+                <input type="number" value={longitude} onChange={(e) => setLongitude(e.target.value)} placeholder="e.g., -118.2437"
+                  className={`w-full border ${errors.longitude ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+                {errors.longitude && typeof errors.longitude === 'string' && <p className="text-xs text-red-500 mt-1">{errors.longitude}</p>}
+              </div>
+            </div>
+            
+            <div>
+                <label className="text-sm font-medium text-black">Status</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm outline-none">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+            </div>
+
+            {/* Assign User */}
+            <div className="relative">
+              <label className="text-sm text-black font-medium flex items-center">
+                <UserPlus size={14} className="mr-1 text-gray-500" /> Assign to Member (Optional)
+              </label>
+              <div
+                className={`w-full border border-gray-300 rounded-md py-2 px-3 text-sm flex justify-between items-center cursor-pointer`}
+                onClick={() => setAssigneeDropdownOpen(!assigneeDropdownOpen)}
+              >
+                <span>
+                  {selectedAssigneeDetails ? `${selectedAssigneeDetails.firstName || ''} ${selectedAssigneeDetails.lastName || ''} (${selectedAssigneeDetails.identifier})` : "Select member"}
+                </span>
+                <ChevronDown size={16} className="text-gray-500" />
+              </div>
+
+              {assigneeDropdownOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                  <input
+                    type="text"
+                    placeholder="Search members..."
+                    value={memberSearchQuery}
+                    onChange={(e) => setMemberSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 border-b border-gray-200 text-sm outline-none"
+                  />
+                  {filteredMembers.map((member) => (
                     <div
-                      key={user.name}
-                      onClick={() => toggleUser(user)}
-                      className={`flex items-center justify-between border border-gray-300 rounded-lg px-4 py-2 cursor-pointer transition ${
-                        isSelected ? "bg-[#e4f7ec]" : "bg-white hover:bg-[#f0fdf4]"
-                      }`}
+                      key={member.id}
+                      className="flex items-center space-x-3 px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => {
+                        setSelectedAssigneeClerkId(member.id);
+                        setAssigneeDropdownOpen(false);
+                        setMemberSearchQuery("");
+                      }}
                     >
-                      <div className="flex items-center space-x-3">
-                        <Image src={user.img} alt={user.name} width={36} height={36} className="w-9 h-9 rounded-full object-cover" />
-                        <div>
-                          <div className="text-sm font-medium text-black">{user.name}</div>
-                          <div className="text-xs text-gray-500">{user.role}</div>
-                        </div>
-                      </div>
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition ${
-                          isSelected ? "bg-[#34BC68] border-[#34BC68]" : "border-gray-400"
-                        }`}
-                      >
-                        {isSelected && <Check size={12} className="text-white" />}
-                      </div>
+                      <Image
+                        src={member.imageUrl || userImgPlaceholder}
+                        alt={member.identifier}
+                        width={24}
+                        height={24}
+                        className="w-6 h-6 rounded-full object-cover"
+                      />
+                      <span className="text-sm">{member.firstName || ''} {member.lastName || ''} ({member.identifier}) - {member.role}</span>
                     </div>
-                  );
-                })}
-                {filteredUsers.length === 0 && (
-                  <div className="text-sm text-gray-500 text-center py-4">No users found.</div>
-                )}
-              </div>
-            )}
-
-            {selectedUsers.length > 0 && (
-              <div className="mb-6 space-y-2">
-                {selectedUsers.map((user) => (
-                  <div key={user.name} className="flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                      <Image src={user.img} alt={user.name} width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
-                      <div>
-                        <div className="text-sm font-medium text-black">{user.name}</div>
-                        <div className="text-xs text-gray-500">{user.email}</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => removeUser(user.name)}
-                      className="text-red-500 text-xs cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="flex justify-center mb-4 space-x-2 mt-4">
-              <div className={`w-3 h-3 rounded-full ${step === 1 ? "bg-[#34BC68]" : "bg-gray-300"}`} />
-              <div className={`w-3 h-3 rounded-full ${step === 2 ? "bg-[#34BC68]" : "bg-gray-300"}`} />
+                  ))}
+                  {filteredMembers.length === 0 && <p className="text-sm text-gray-500 p-3">No members found.</p>}
+                </div>
+              )}
             </div>
+          </div>
 
-            <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-3 mt-4">
-              <button
-                onClick={handleBack}
-                className="px-4 sm:px-24 py-2 text-sm border border-gray-300 rounded-md bg-white text-black w-full sm:w-auto"
-              >
-                Back
-              </button>
-              <button
-                onClick={onClose} // Assuming onClose will handle form submission or closing
-                className="px-4 sm:px-24 py-2 text-sm rounded-md bg-black text-white w-full sm:w-auto"
-              >
-                Confirm
-              </button>
-            </div>
-          </>
-        )}
+
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-8">
+            <button onClick={onClose} disabled={isLoading}
+              className="px-6 py-2 text-sm border border-gray-300 rounded-md bg-white text-black hover:bg-gray-50 disabled:opacity-50 w-full sm:w-auto">
+              Cancel
+            </button>
+            <button onClick={handleFormSubmit} disabled={isLoading || !organization}
+              className="px-6 py-2 text-sm rounded-md bg-black text-white hover:bg-gray-800 disabled:opacity-50 disabled:bg-gray-400 w-full sm:w-auto">
+              {isLoading ? "Saving..." : "Save Asset"}
+            </button>
+          </div>
+        </>
       </div>
     </div>
   );

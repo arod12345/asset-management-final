@@ -16,4 +16,30 @@ model User {
   clerkUserId String   @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  assignedAssets Asset[] @relation("UserAssets")
+}
+
+model Asset {
+  id                  String    @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  model               String
+  serialNumber        String    @unique
+  imageUrl            String?
+  description         String
+  status              String    @default("Active") // "Active", "Inactive"
+  latitude            Float?
+  longitude           Float?
+
+  clerkOrganizationId String    // ID of the Clerk organization this asset belongs to
+
+  assignedToClerkUserId String?   // Clerk User ID of the person this asset is assigned to
+  assignedTo          User?     @relation("UserAssets", fields: [assignedToDbUserId], references: [id])
+  assignedToDbUserId  String?   @db.ObjectId // Foreign key for Prisma relation to User model
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([clerkOrganizationId])
+  @@index([assignedToClerkUserId])
 }

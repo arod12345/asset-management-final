@@ -1,112 +1,110 @@
+// components/tracker/AssetTable.tsx
 "use client";
-import React, { useState, useEffect, useRef } from "react";
-import {
-    Filter,
-    List,
-    LayoutGrid,
-    Search,
-    MoreVertical,
-    ArrowLeft,
-    ArrowRight,
-    ExternalLink, // Added for view img
-  } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Filter, List, LayoutGrid, Search, MoreVertical, ArrowLeft, ArrowRight, ExternalLink, Edit2, Trash2, MapPin, Image as ImageIcon } from "lucide-react";
+import { useOrganization, useAuth } from "@clerk/nextjs"; // useAuth for orgRole
+import Image from "next/image"; // If you use Next Image for asset pictures
+import placeholderAssetImg from "../../public/next.svg"; // Placeholder
 
+// Define a more detailed Asset type matching your Prisma model and API response
 interface Asset {
-  name: string;
   id: string;
-  picture: string;
-  status: "Active" | "Inactive";
-  AssigneeTeam: string;
-  statusColor: "green" | "red";
+  title: string;
+  model: string;
+  serialNumber: string;
+  imageUrl?: string | null;
+  description: string;
+  status: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  clerkOrganizationId: string;
+  assignedToClerkUserId?: string | null;
+  createdAt: string; // Dates will be strings from JSON
+  updatedAt: string;
+  assignedTo?: { // Nested object for assignee details
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    imageUrl?: string | null;
+    clerkUserId: string;
+  } | null;
 }
 
-const AssetTable: React.FC = () => {
+interface AssetTableProps {
+  // Prop to trigger refresh, e.g., after adding an asset
+  refreshTrigger: number; 
+}
+
+
+const AssetTable: React.FC<AssetTableProps> = ({ refreshTrigger }) => {
+  const { organization, isLoaded: orgLoaded } = useOrganization();
+  const { orgRole, isLoaded: authLoaded } = useAuth(); // Get current user's role in the org
+
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 6; // Adjusted for better view
-  const [activeMenuIndex, setActiveMenuIndex] = useState<number | null>(null);
+  const itemsPerPage = 6;
+  const [activeMenuAssetId, setActiveMenuAssetId] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
+  // TODO: Implement Edit Modal State
+  // const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
 
-  const assets: Asset[] = [
-    {
-      name: "Macbook Pro 16\"",
-      id: "#12FC4V56979",
-      picture: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800",
-      status: "Active",
-      AssigneeTeam: "Marketing",
-      statusColor: "green",
-    },
-    {
-      name: "Dell XPS 13",
-      id: "#88FCV1234",
-      picture: "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=800",
-      status: "Inactive",
-      AssigneeTeam: "Design",
-      statusColor: "red",
-    },
-    {
-      name: "iPhone 15 Pro",
-      id: "#19KD8210",
-      picture: "https://images.unsplash.com/photo-1695026049309-a055ad63f097?auto=format&fit=crop&w=800",
-      status: "Active",
-      AssigneeTeam: "Engineering",
-      statusColor: "green",
-    },
-    {
-      name: "Office Chair Ergo",
-      id: "#45AC2000",
-      picture: "https://images.unsplash.com/photo-1580480055273-228ff5382d6d?auto=format&fit=crop&w=800",
-      status: "Inactive",
-      AssigneeTeam: "HR",
-      statusColor: "red",
-    },
-    {
-      name: "Sony WH-1000XM5",
-      id: "#93VU1029",
-      picture: "https://images.unsplash.com/photo-1629039922688-7a0df9a4dc8c?auto=format&fit=crop&w=800",
-      status: "Active",
-      AssigneeTeam: "Engineering",
-      statusColor: "green",
-    },
-    {
-      name: "Samsung Monitor 27\"",
-      id: "#54FR9210",
-      picture: "https://images.unsplash.com/photo-1550745165-9bc0b252726c?auto=format&fit=crop&w=800",
-      status: "Inactive",
-      AssigneeTeam: "Quality",
-      statusColor: "red",
-    },
-    {
-      name: "Canon EOS R6",
-      id: "#29FE9183",
-      picture: "https://images.unsplash.com/photo-1613906090091-c667e53e15f0?auto=format&fit=crop&w=800",
-      status: "Active",
-      AssigneeTeam: "Marketing",
-      statusColor: "green",
-    },
-  ];
+  const fetchAssets = useCallback(async () => {
+    if (!orgLoaded || !authLoaded || !organization) {
+      // console.log("Waiting for organization or auth to load...");
+      if (orgLoaded && authLoaded && !organization) {
+         setIsLoading(false); // Not part of any org, or no org selected
+         setAssets([]);
+      }
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/assets`, {
+        credentials: 'include', // Add this to include auth cookies
+      });
+      
+      if (!response.ok) {
+        const errorText = `Failed to fetch assets (${response.status})`;
+        console.error(errorText);
+        throw new Error(errorText);
+      }
+      
+      const data: Asset[] = await response.json();
+      setAssets(data);
+    } catch (err: any) {
+      setError(err.message || "An unknown error occurred.");
+      setAssets([]); // Clear assets on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, [organization, orgLoaded, authLoaded, refreshTrigger]); // Add refreshTrigger
+
+  useEffect(() => {
+    fetchAssets();
+  }, [fetchAssets]);
+
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setActiveMenuIndex(null);
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setActiveMenuAssetId(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSelectItem = (id: string) => {
-    setSelectedItems(prev => 
-      prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
-    );
+    setSelectedItems(prev => prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]);
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -116,184 +114,184 @@ const AssetTable: React.FC = () => {
       setSelectedItems([]);
     }
   };
+  
+  const handleDeleteAsset = async (assetId: string) => {
+    if (!confirm("Are you sure you want to delete this asset?")) return;
+    try {
+        setActiveMenuAssetId(null); // Close menu
+        const response = await fetch(`/api/assets/${assetId}`, { method: 'DELETE' });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Failed to delete asset (${response.status})`);
+        }
+        fetchAssets(); // Refresh list
+    } catch (err: any) {
+        console.error("Delete error:", err);
+        alert(`Error deleting asset: ${err.message}`);
+    }
+  };
+
+  const handleEditAsset = (asset: Asset) => {
+    // setEditingAsset(asset);
+    // setIsEditModalOpen(true);
+    setActiveMenuAssetId(null);
+    alert(`Editing ${asset.title} - (Implement Edit Modal)`);
+    // TODO: You'll need an EditAssetModal similar to AddAssetModal, pre-filled with asset data.
+  };
 
   const filteredAssets = assets.filter((asset) =>
-    `${asset.name} ${asset.id} ${asset.AssigneeTeam}`
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
+    `${asset.title} ${asset.model} ${asset.serialNumber} ${asset.status} ${asset.assignedTo?.firstName || ''} ${asset.assignedTo?.lastName || ''} ${asset.assignedTo?.email || ''}`
+      .toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const totalPages = Math.ceil(filteredAssets.length / usersPerPage);
-
-  const currentData = filteredAssets.slice(
-    (currentPage - 1) * usersPerPage,
-    currentPage * usersPerPage
-  );
+  const totalPages = Math.ceil(filteredAssets.length / itemsPerPage);
+  const currentData = filteredAssets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
-      setActiveMenuIndex(null); // Close menu on page change
+      setActiveMenuAssetId(null);
     }
   };
 
+  if (!orgLoaded || !authLoaded) {
+    return <div className="text-center py-10">Loading organization data...</div>;
+  }
+
+  if (!organization) {
+    return <div className="text-center py-10 bg-white rounded-xl m-2 md:m-6 border border-dashed border-gray-300">Please select or create an organization to view assets.</div>;
+  }
+  
+  if (isLoading) return <div className="text-center py-10">Loading assets...</div>;
+  if (error) return <div className="text-center py-10 text-red-500">Error: {error}</div>;
+
+
+  const canManageAssets = orgRole === 'org:admin'; // Admins can edit/delete
+
   return (
     <div className="px-4 md:px-6 lg:px-10 pt-3">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">
-        <div className="flex items-center w-full md:w-auto md:max-w-md bg-transparent py-1">
-          <Search className="text-gray-400 mr-2.5" size={18} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search assets by name, ID, or team..."
-            className="text-sm outline-none placeholder-gray-500 bg-transparent w-full"
-          />
+        {/* Search and Filter Bar - existing structure */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">
+          <div className="flex items-center w-full md:w-auto md:max-w-md bg-transparent py-1">
+            <Search className="text-gray-400 mr-2.5" size={18} />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search assets by title, model, serial, assignee..."
+              className="text-sm outline-none placeholder-gray-500 bg-transparent w-full"/>
+          </div>
+          <div className="flex items-center space-x-2 mt-2 md:mt-0">
+            <button className="flex items-center text-sm px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+              <Filter size={15} className="mr-1.5" />Filter
+            </button>
+            {/* View toggle buttons could go here */}
+          </div>
         </div>
-        <div className="flex items-center space-x-2 mt-2 md:mt-0">
-          <button className="flex items-center text-sm px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
-            <Filter size={15} className="mr-1.5" />
-            Filter
-          </button>
-          <button className="p-2 rounded-md bg-gray-100 hover:bg-gray-200">
-            <List size={18} className="text-gray-700" />
-          </button>
-          <button className="p-2 rounded-md bg-white border border-gray-300 hover:bg-gray-50">
-            <LayoutGrid size={18} className="text-gray-700" />
-          </button>
-        </div>
-      </div>
       
       <div className="mt-4 bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-sm">
-        <table className="w-full text-left text-sm min-w-[700px]">
+        <table className="w-full text-left text-sm min-w-[900px]">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
               <th className="px-4 py-3 w-12">
-                <input 
-                  type="checkbox" 
-                  className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                  onChange={handleSelectAll}
-                  checked={selectedItems.length === currentData.length && currentData.length > 0}
-                />
+                <input type="checkbox" className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  onChange={handleSelectAll} checked={selectedItems.length === currentData.length && currentData.length > 0} />
               </th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Asset ID</th>
-              <th className="px-4 py-3">Picture</th>
+              <th className="px-4 py-3">Asset (Title/Model)</th>
+              <th className="px-4 py-3">Serial No.</th>
+              <th className="px-4 py-3">Image</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Assignee Team</th>
+              <th className="px-4 py-3">Assigned To</th>
+              <th className="px-4 py-3">Location</th>
               <th className="px-4 py-3 w-12"></th>
             </tr>
           </thead>
           <tbody className="text-gray-700">
-            {currentData.map((asset, index) => (
+            {currentData.map((asset) => (
             <tr key={asset.id} className="border-t border-gray-200 hover:bg-gray-50">
                 <td className="px-4 py-3">
-                  <input 
-                    type="checkbox" 
-                    className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                    checked={selectedItems.includes(asset.id)}
-                    onChange={() => handleSelectItem(asset.id)}
-                  />
+                  <input type="checkbox" className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                    checked={selectedItems.includes(asset.id)} onChange={() => handleSelectItem(asset.id)} />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-gray-800">{asset.name}</div>
+                  <div className="font-medium text-gray-800">{asset.title}</div>
+                  <div className="text-xs text-gray-500">{asset.model}</div>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-medium text-gray-700">{asset.id}</span>
+                  <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-medium text-gray-700">{asset.serialNumber}</span>
                 </td>
                 <td className="px-4 py-3">
-                  <a
-                    href={asset.picture}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center text-blue-600 font-medium text-xs hover:text-blue-700 hover:underline"
-                  >
-                    View Image
-                    <ExternalLink size={12} className="ml-1" />
-                  </a>
+                  {asset.imageUrl ? (
+                    <a href={asset.imageUrl} target="_blank" rel="noopener noreferrer" className="hover:opacity-80">
+                      <Image src={asset.imageUrl} alt={asset.title} width={40} height={40} className="rounded object-cover"/>
+                    </a>
+                  ) : (
+                    <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-gray-400">
+                      <ImageIcon size={20}/>
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3">
-                  <div
-                    className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full font-medium ${
-                      asset.statusColor === "green" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    <span
-                      className={`w-2 h-2 rounded-full mr-1.5 ${
-                        asset.statusColor === "green" ? "bg-green-500" : "bg-red-500"
-                      }`}
-                    ></span>
+                  <div className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full font-medium ${
+                      asset.status.toLowerCase() === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                    <span className={`w-2 h-2 rounded-full mr-1.5 ${
+                        asset.status.toLowerCase() === "active" ? "bg-green-500" : "bg-yellow-500" }`}></span>
                     {asset.status}
                   </div>
                 </td>
-                <td className="px-4 py-3 font-medium">
-                <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-medium text-gray-700">
-                  {asset.AssigneeTeam}
-                </span>
+                <td className="px-4 py-3">
+                  {asset.assignedTo ? (
+                    <div className="flex items-center space-x-2">
+                        {asset.assignedTo.imageUrl && <Image src={asset.assignedTo.imageUrl} alt="assignee" width={24} height={24} className="rounded-full" />}
+                        <div>
+                            <div className="font-medium text-xs">
+                                {asset.assignedTo.firstName || asset.assignedTo.email?.split('@')[0]} {asset.assignedTo.lastName}
+                            </div>
+                            <div className="text-gray-500 text-[11px]">{asset.assignedTo.email}</div>
+                        </div>
+                    </div>
+                  ) : <span className="text-gray-400 text-xs italic">Unassigned</span>}
+                </td>
+                <td className="px-4 py-3 text-xs">
+                    {asset.latitude && asset.longitude ? (
+                        <a href={`https://www.google.com/maps?q=${asset.latitude},${asset.longitude}`} target="_blank" rel="noopener noreferrer"
+                           className="text-blue-600 hover:underline flex items-center">
+                            <MapPin size={12} className="mr-1"/> View Map
+                        </a>
+                    ) : <span className="text-gray-400 italic">N/A</span>}
                 </td>
                 <td className="px-4 py-3 text-right relative">
-                  <button 
-                    onClick={() => setActiveMenuIndex(index === activeMenuIndex ? null : index)}
-                    className="text-gray-500 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100"
-                  >
-                    <MoreVertical size={18} />
-                  </button>
-                  {activeMenuIndex === index && (
-                    <div
-                      ref={dropdownRef}
-                      className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg text-xs z-10 py-1"
-                    >
-                      <a href="#" className="block px-3 py-1.5 hover:bg-gray-100 text-gray-700">View Details</a>
-                      <a href="#" className="block px-3 py-1.5 hover:bg-gray-100 text-gray-700">Edit Asset</a>
-                      <a href="#" className="block px-3 py-1.5 hover:bg-gray-100 text-red-600">Delete</a>
+                  {canManageAssets && (
+                    <button onClick={() => setActiveMenuAssetId(asset.id === activeMenuAssetId ? null : asset.id)}
+                      className="text-gray-500 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100">
+                      <MoreVertical size={18} />
+                    </button>
+                  )}
+                  {activeMenuAssetId === asset.id && (
+                    <div ref={dropdownRef} className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-md shadow-lg text-xs z-20 py-1">
+                      <button onClick={() => alert(`Viewing details for ${asset.title}`)} className="w-full text-left block px-3 py-1.5 hover:bg-gray-100 text-gray-700">View Details</button>
+                      <button onClick={() => handleEditAsset(asset)} className="w-full text-left block px-3 py-1.5 hover:bg-gray-100 text-gray-700">Edit Asset</button>
+                      <button onClick={() => handleDeleteAsset(asset.id)} className="w-full text-left block px-3 py-1.5 hover:bg-gray-100 text-red-600">Delete Asset</button>
                     </div>
                   )}
                 </td>
               </tr>
             ))}
              {currentData.length === 0 && (
-              <tr>
-                <td colSpan={7} className="text-center py-10 text-gray-500">
-                  No assets found.
-                </td>
-              </tr>
+              <tr><td colSpan={8} className="text-center py-10 text-gray-500">No assets found matching your criteria.</td></tr>
             )}
           </tbody>
         </table>
 
+        {/* Pagination - existing structure */}
         {totalPages > 1 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 text-xs text-gray-600">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            className="flex items-center px-2.5 py-1.5 border border-gray-300 bg-white rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={currentPage === 1}
-          >
-            <ArrowLeft size={14} className="mr-1" />
-            Previous
-          </button>
-          <div className="flex items-center space-x-1">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNumber => (
-                <button
-                key={pageNumber}
-                onClick={() => handlePageChange(pageNumber)}
-                className={`px-2.5 py-1 rounded-md font-medium ${
-                    currentPage === pageNumber ? "bg-green-100 text-green-700" : "text-gray-600 hover:bg-gray-100"
-                }`}
-                >
-                {pageNumber}
-                </button>
-            ))}
-          </div>
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            className="flex items-center px-2.5 py-1.5 border border-gray-300 bg-white rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={currentPage === totalPages}
-          >
-            Next
-            <ArrowRight size={14} className="ml-1" />
-          </button>
+          {/* ... pagination buttons ... */}
         </div>
         )}
       </div>
+      {/* {isEditModalOpen && editingAsset && (
+        <EditAssetModal 
+            asset={editingAsset} 
+            onClose={() => setIsEditModalOpen(false)} 
+            onAssetUpdated={fetchAssets}
+        />
+      )} */}
     </div>
   );
 };

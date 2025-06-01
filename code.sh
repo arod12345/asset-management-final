@@ -1,7 +1,7 @@
 #!/bin/bash
 # Use the first argument as the target folder; default to the current directory if none is provided.
 folder="${1:-.}"
-output="merged_video_code.txt"
+output="merged_code.txt"
 
 # Clear the output file (or create it if it doesn't exist)
 > "$output"

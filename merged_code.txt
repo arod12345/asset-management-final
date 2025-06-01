@@ -1,0 +1,3462 @@
+=== Folder: /c/Users/hp/desktop/clerk-webhooks ===
+--- File: .env ---
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_cHVtcGVkLW1hbGFtdXRlLTE3LmNsZXJrLmFjY291bnRzLmRldiQ
+CLERK_SECRET_KEY=sk_test_Jv1tC72LP65SNhxpudwJLwQkMsyjoixe54zxn3mQnN
+CLERK_WEBHOOK_SIGNING_SECRET=whsec_3Gw11eMeFSM+nnCVM3KETw+wIe+BI+YR
+
+# Database
+DATABASE_URL="mongodb+srv://sisayabel681:8911@cluster0.kzhxrwa.mongodb.net/expense-asset-tracker?retryWrites=true&w=majority&appName=Cluster0"
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks ===
+--- File: .eslintrc.json ---
+{
+  "extends": "next/core-web-vitals"
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/(tracker)/assets ===
+--- File: page.tsx ---
+// app/(tracker)/assets/page.tsx
+"use client";
+import React, { useState } from "react";
+import AssetTable from "@/components/tracker/AssetTable";
+import AssetPageHeader from "@/components/tracker/AssetPageHeader";
+import { useOrganization, OrganizationSwitcher } from "@clerk/nextjs";
+
+
+export default function AssetsPage() {
+  const [activeTab, setActiveTab] = useState("All Assets");
+  const { organization } = useOrganization();
+  const [refreshKey, setRefreshKey] = useState(0); // Key to trigger refresh
+
+  const handleAssetAdded = () => {
+    setRefreshKey(prevKey => prevKey + 1); // Increment key to trigger re-fetch in AssetTable
+  };
+
+
+  return (
+    <div className="w-full">
+      <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">
+        <h2 className="text-md font-semibold">Current Organization: {organization?.name || "None"}</h2>
+        <OrganizationSwitcher
+            hidePersonal={true}
+            afterSelectOrganizationUrl={(org) => `/assets?orgId=${org.id}`} // Or simply let Clerk handle active org
+        />
+      </div>
+
+      <AssetPageHeader
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onAssetAdded={handleAssetAdded} // Pass callback to header, which passes to modal
+      />
+      <div className="mt-4">
+        {activeTab === "All Assets" && <AssetTable refreshTrigger={refreshKey} />}
+        {activeTab === "Not Active" && (
+          <div className="h-[300px] bg-white rounded-xl m-2 md:m-6 border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm">
+            Not Active assets section (filter AssetTable or make separate component)
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/(tracker)/dashboard ===
+--- File: page.tsx ---
+"use client";
+import React from "react";
+import DashboardComp from "@/components/tracker/DashboardComp";
+import DashboardAssetAnalysis from "@/components/tracker/DashboardAssetAnalysis";
+
+export default function DashboardPage() {
+  return (
+    <div className="space-y-6">
+      <DashboardComp />
+      <DashboardAssetAnalysis />
+    </div>
+  );
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/(tracker)/employees ===
+--- File: page.tsx ---
+"use client";
+import React, { useState } from "react";
+import EmployeeTable from "@/components/tracker/EmployeeTable";
+import EmployePageHeader from "@/components/tracker/EmployePageHeader"; // Note: typo in original filename "Employe"
+
+export default function EmployeesPage() {
+  const [activeTab, setActiveTab] = useState("All Employees");
+
+  return (
+    <div className="w-full">
+      <EmployePageHeader // Renamed for consistency if you prefer EmployeePageHeader
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+      <div className="mt-4">
+        {activeTab === "All Employees" && <EmployeeTable />}
+        {activeTab === "Teams" && (
+          <div className="h-[300px] bg-white rounded-xl m-2 md:m-6 border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm">
+            Teams section placeholder
+          </div>
+        )}
+        {activeTab === "Roles" && (
+          <div className="h-[300px] bg-white rounded-xl m-2 md:m-6 border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm">
+            Roles section placeholder (Content from RoleBox could go here or separate page)
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/(tracker) ===
+--- File: layout.tsx ---
+"use client"; // This layout itself uses client-side hooks for sidebar state
+
+import React, { useState } from "react";
+import { usePathname } from 'next/navigation';
+import Sidebar from "@/components/tracker/Sidebar"; // Adjusted path
+import Topbar from "@/components/tracker/Topbar";   // Adjusted path
+
+export default function TrackerLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Determine active sidebar item based on pathname
+  let activeItem = "Dashboard"; // Default
+  if (pathname.includes("/employees")) activeItem = "Employees";
+  else if (pathname.includes("/assets")) activeItem = "Assets";
+  else if (pathname.includes("/roles")) activeItem = "Roles";
+  else if (pathname.includes("/expense")) activeItem = "Expense";
+  else if (pathname.includes("/income")) activeItem = "Income";
+  else if (pathname.includes("/reports")) activeItem = "Reports";
+  else if (pathname.includes("/settings")) activeItem = "Settings";
+  // Add more conditions if needed for other sidebar items
+
+  return (
+    <div className="flex h-screen bg-white relative">
+      {/* Sidebar for desktop */}
+      <div className="hidden md:block md:w-[18%] lg:w-[15%] h-full">
+        <Sidebar
+          active={activeItem}
+          onItemClick={() => {}} // Navigation handled by Link components in Sidebar
+          isMobileSidebarOpen={isMobileSidebarOpen}
+          setIsMobileSidebarOpen={setIsMobileSidebarOpen}
+        />
+      </div>
+
+      {/* Sidebar for mobile */}
+      {isMobileSidebarOpen && (
+        <div className="fixed inset-0 z-40 md:hidden"> {/* z-40 so it's below modals (z-50) */}
+          <div className="flex h-full">
+            <div className="w-64 bg-white h-full shadow-md">
+              <Sidebar
+                active={activeItem}
+                onItemClick={() => setIsMobileSidebarOpen(false)} // Close on item click for mobile
+                isMobileSidebarOpen={isMobileSidebarOpen}
+                setIsMobileSidebarOpen={setIsMobileSidebarOpen}
+              />
+            </div>
+            <div
+              className="flex-1 bg-black/40"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
+
+      {/* Small gap and divider (only for desktop) */}
+      <div className="hidden md:block md:w-[1%]"></div>
+      <div className="hidden md:block w-[1px] h-full bg-[#e7e4e4]"></div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col w-full h-full bg-white overflow-y-auto">
+        <Topbar setIsMobileSidebarOpen={setIsMobileSidebarOpen} />
+        <main className="flex-1 p-4 md:p-6">{children}</main>
+      </div>
+    </div>
+  );
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/(tracker)/roles ===
+--- File: page.tsx ---
+"use client";
+import React, { useState } from "react";
+// import RoleBox from "@/components/tracker/RoleBox";
+// import RolePageHeader from "@/components/tracker/RolePageHeader";
+
+export default function RolesPage() {
+  const [activeTab, setActiveTab] = useState("All Roles");
+
+  return (
+    <div className="w-full">
+      {/* <RolePageHeader activeTab={activeTab} setActiveTab={setActiveTab} /> */}
+      <div className="mt-4">
+        {/* {activeTab === "All Roles" && <RoleBox />} */}
+        {activeTab === "Permissions" && (
+          <div className="h-[300px] bg-white rounded-xl m-2 md:m-6 border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-sm">
+            Permissions section placeholder
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/api/assets ===
+--- File: route.ts ---
+// app/api/assets/route.ts
+import { NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
+import clerkNodeSDK from '@clerk/clerk-sdk-node'; // Use Clerk Node SDK
+import prisma from '@/lib/prisma';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { getUserById, createUser } from '@/lib/users'; // To find Prisma user ID from Clerk ID and create user
+
+// Ensure this route is treated as dynamic for every request so auth() has cookies
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const runtime = 'nodejs';
+
+export async function POST(req: Request) {
+  try {
+    const { userId, orgId, orgRole } = await auth();
+    const body = await req.json();
+    const {
+      title,
+      model,
+      serialNumber,
+      imageUrl,
+      description,
+      status,
+      latitude,
+      longitude,
+      assignedToClerkUserId, // Expecting Clerk User ID of the assignee
+    } = body;
+
+    if (!userId) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    if (!orgId) {
+      return new NextResponse('No active organization selected', { status: 400 });
+    }
+
+    // Only organization admins can create assets
+    if (orgRole !== 'org:admin') {
+      return new NextResponse('Forbidden: Insufficient role', { status: 403 });
+    }
+
+    if (!title || !model || !serialNumber || !description) {
+      return new NextResponse('Missing required asset fields', { status: 400 });
+    }
+
+    let assignedToDbUserId: string | undefined = undefined;
+    if (assignedToClerkUserId) {
+      const { user: assignee } = await getUserById({ clerkUserId: assignedToClerkUserId });
+      
+      if (!assignee) {
+        // User doesn't exist in local DB, but exists in Clerk
+        // Let's try to get their info from Clerk and create them
+        try {
+          console.log(`User with Clerk ID ${assignedToClerkUserId} not found in local DB. Fetching from Clerk...`);
+          const clerkUser = await clerkNodeSDK.users.getUser(assignedToClerkUserId);
+          
+          if (clerkUser) {
+            // Create user in local DB using Clerk data
+            const email = clerkUser.emailAddresses[0]?.emailAddress || "";
+            const firstName = clerkUser.firstName || "";
+            const lastName = clerkUser.lastName || "";
+            const imageUrl = clerkUser.imageUrl || "";
+            
+            const newUser = {
+              clerkUserId: assignedToClerkUserId,
+              email,
+              firstName,
+              lastName,
+              imageUrl
+            };
+            
+            const { user: createdUser, error } = await createUser(newUser as any);
+            
+            if (createdUser) {
+              console.log(`Created user in local DB with ID: ${createdUser.id}`);
+              assignedToDbUserId = createdUser.id;
+            } else {
+              console.error(`Failed to create user in local DB: ${error}`);
+              return new NextResponse(`Failed to create user in local DB: ${error}`, { status: 500 });
+            }
+          } else {
+            return new NextResponse(`User with Clerk ID ${assignedToClerkUserId} not found in Clerk`, { status: 404 });
+          }
+        } catch (error) {
+          console.error("Error fetching/creating user:", error);
+          return new NextResponse(`Error creating user from Clerk data: ${error instanceof Error ? error.message : 'Unknown error'}`, 
+            { status: 500 });
+        }
+      } else {
+        // User exists in local DB, use their ID
+        console.log(`Assigning asset to user with Clerk ID: ${assignedToClerkUserId}`);
+        assignedToDbUserId = assignee.id;
+      }
+    }
+
+    const asset = await prisma.asset.create({
+      data: {
+        title,
+        model,
+        serialNumber,
+        imageUrl,
+        description,
+        status: status || 'Active',
+        latitude: latitude ? parseFloat(latitude) : undefined,
+        longitude: longitude ? parseFloat(longitude) : undefined,
+        clerkOrganizationId: orgId,
+        assignedToClerkUserId: assignedToClerkUserId || null, // Store clerk ID directly
+        assignedToDbUserId: assignedToDbUserId || null,     // Store prisma ID for relation
+      },
+    });
+
+    return NextResponse.json(asset, { status: 201, headers: { 'Cache-Control': 'no-store' } });
+  } catch (error: unknown) {
+    console.error('[ASSETS_POST]', error);
+    
+    // Check for Prisma known request errors
+    if (error instanceof PrismaClientKnownRequestError) {
+      if (error.code === 'P2002' && error.meta?.target === 'Asset_serialNumber_key') {
+        return new NextResponse('Serial number already exists.', { status: 409 });
+      }
+    }
+    
+    // Handle general errors
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return new NextResponse(errorMessage, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const { userId, orgId, orgRole } = await auth();
+
+    if (!userId) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
+    if (!orgId) {
+      return new NextResponse('No active organization selected', { status: 400 });
+    }
+
+    let assets;
+    if (orgRole === 'org:admin') {
+      // Admins see all assets in the organization
+      assets = await prisma.asset.findMany({
+        where: { clerkOrganizationId: orgId },
+        include: { assignedTo: { select: { firstName: true, lastName: true, email: true, imageUrl: true, clerkUserId: true }} }, // Include assignee details
+        orderBy: { createdAt: 'desc' },
+      });
+    } else {
+      // Members see only assets assigned to them within that organization
+      assets = await prisma.asset.findMany({
+        where: {
+          clerkOrganizationId: orgId,
+          assignedToClerkUserId: userId,
+        },
+        include: { assignedTo: { select: { firstName: true, lastName: true, email: true, imageUrl: true, clerkUserId: true }} },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+    return NextResponse.json(assets, { headers: { 'Cache-Control': 'no-store' } });
+  } catch (error: unknown) {
+    console.error('[ASSETS_GET]', error);
+    // Handle error properly
+    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
+    return new NextResponse(errorMessage, { status: 500 });
+  }
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/api/assets/[assetId] ===
+--- File: route.ts ---
+// app/api/assets/[assetId]/route.ts
+import { NextResponse } from 'next/server';
+import { auth, clerkClient } from '@clerk/nextjs/server';
+import prisma from '@/lib/prisma';
+import { getUserById } from '@/lib/users';
+
+interface Params {
+  params: { assetId: string };
+}
+
+export async function GET(req: Request, { params }: Params) {
+  try {
+    const { userId, orgId, orgRole } = auth();
+    const { assetId } = params;
+
+    if (!userId) return new NextResponse('Unauthorized', { status: 401 });
+    if (!orgId) return new NextResponse('No active organization selected', { status: 400 });
+    if (!assetId) return new NextResponse('Asset ID missing', { status: 400 });
+
+    const asset = await prisma.asset.findUnique({
+      where: { id: assetId, clerkOrganizationId: orgId }, // Ensure asset belongs to the current org
+      include: { assignedTo: { select: { firstName: true, lastName: true, email: true, imageUrl: true, clerkUserId: true }} },
+    });
+
+    if (!asset) return new NextResponse('Asset not found or not part of this organization', { status: 404 });
+
+    // Admins can see any asset in their org. Members can only see if assigned to them.
+    if (orgRole !== 'org:admin' && asset.assignedToClerkUserId !== userId) {
+      return new NextResponse('Forbidden: You do not have access to this asset', { status: 403 });
+    }
+
+    return NextResponse.json(asset);
+  } catch (error) {
+    console.error('[ASSET_ID_GET]', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+export async function PUT(req: Request, { params }: Params) {
+  try {
+    const { userId, orgId, orgRole } = auth();
+    const { assetId } = params;
+    const body = await req.json();
+    const {
+      title, model, serialNumber, imageUrl, description, status,
+      latitude, longitude, assignedToClerkUserId,
+    } = body;
+
+    if (!userId) return new NextResponse('Unauthorized', { status: 401 });
+    if (!orgId) return new NextResponse('No active organization selected', { status: 400 });
+    if (!assetId) return new NextResponse('Asset ID missing', { status: 400 });
+
+    const assetToUpdate = await prisma.asset.findUnique({
+      where: { id: assetId, clerkOrganizationId: orgId },
+    });
+
+    if (!assetToUpdate) return new NextResponse('Asset not found or not part of this organization', { status: 404 });
+
+    // Admins can update any asset. Members can only update assets assigned to them (potentially limited fields).
+    // For simplicity here, only admins can update. You can expand this.
+    if (orgRole !== 'org:admin') {
+      // Example: allow member to update status or location if assigned
+      // if (assetToUpdate.assignedToClerkUserId !== userId || (title || model || serialNumber /* etc if not allowed to change*/)) {
+      //   return new NextResponse('Forbidden: Insufficient permissions to update this asset or these fields', { status: 403 });
+      // }
+       return new NextResponse('Forbidden: Insufficient role to update', { status: 403 });
+    }
+    
+    let assignedToDbUserId: string | null | undefined = undefined; // undefined means don't change, null means unassign
+    if (assignedToClerkUserId === null) { // Explicitly unassigning
+        assignedToDbUserId = null;
+    } else if (assignedToClerkUserId) { // Assigning or changing assignment
+      const { user: assignee } = await getUserById({ clerkUserId: assignedToClerkUserId });
+      if (!assignee) {
+        return new NextResponse(`Assignee user with Clerk ID ${assignedToClerkUserId} not found in local DB`, { status: 404 });
+      }
+      const memberships = await clerkClient.users.getOrganizationMembershipList({ userId: assignedToClerkUserId });
+      if (!memberships.some(mem => mem.organization.id === orgId)) {
+        return new NextResponse('Assignee is not a member of this organization.', { status: 400 });
+      }
+      assignedToDbUserId = assignee.id;
+    }
+
+
+    const updatedAsset = await prisma.asset.update({
+      where: { id: assetId },
+      data: {
+        ...(title && { title }),
+        ...(model && { model }),
+        ...(serialNumber && { serialNumber }),
+        imageUrl: imageUrl, // Can be set to null
+        ...(description && { description }),
+        ...(status && { status }),
+        latitude: latitude !== undefined ? parseFloat(latitude) : undefined,
+        longitude: longitude !== undefined ? parseFloat(longitude) : undefined,
+        // Only update assignment if assignedToClerkUserId is provided in the payload
+        ...(assignedToClerkUserId !== undefined && { 
+            assignedToClerkUserId: assignedToClerkUserId,
+            assignedToDbUserId: assignedToDbUserId,
+        })
+      },
+    });
+
+    return NextResponse.json(updatedAsset);
+  } catch (error) {
+    console.error('[ASSET_ID_PUT]', error);
+     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002' && error.meta?.target === 'Asset_serialNumber_key') {
+      return new NextResponse('Serial number already exists for another asset.', { status: 409 });
+    }
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request, { params }: Params) {
+  try {
+    const { userId, orgId, orgRole } = auth();
+    const { assetId } = params;
+
+    if (!userId) return new NextResponse('Unauthorized', { status: 401 });
+    if (!orgId) return new NextResponse('No active organization selected', { status: 400 });
+    if (!assetId) return new NextResponse('Asset ID missing', { status: 400 });
+    
+    const assetToDelete = await prisma.asset.findUnique({
+      where: { id: assetId, clerkOrganizationId: orgId },
+    });
+
+    if (!assetToDelete) return new NextResponse('Asset not found or not part of this organization', { status: 404 });
+
+    if (orgRole !== 'org:admin') {
+      return new NextResponse('Forbidden: Insufficient role', { status: 403 });
+    }
+
+    await prisma.asset.delete({ where: { id: assetId } });
+    return new NextResponse('Asset deleted', { status: 200 });
+  } catch (error) {
+    console.error('[ASSET_ID_DELETE]', error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/api/me ===
+--- File: route.ts ---
+import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
+
+export async function GET() {
+  const { userId } = auth()
+
+  if (!userId) {
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
+
+  return NextResponse.json({ userId }, { status: 200 })
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/api/webhooks/clerk ===
+--- File: route.ts ---
+import { verifyWebhook } from '@clerk/nextjs/webhooks'
+import { NextRequest } from 'next/server'
+import { WebhookEvent } from '@clerk/nextjs/server'
+import { createUser } from '@/lib/users'
+import { User } from '@prisma/client'
+
+export async function POST(req: NextRequest) {
+  try {
+    const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SIGNING_SECRET
+    
+    if (!WEBHOOK_SECRET) {
+      throw new Error(
+        'Please add CLERK_WEBHOOK_SECRET from Clerk Dashboard to .env or .env.local'
+      )
+    }
+
+    // Verify the webhook using Clerk's helper function
+    const evt = await verifyWebhook(req)
+
+    const eventType = evt.type
+
+    if (eventType === 'user.created') {
+      const { id, email_addresses, first_name, last_name, image_url } = evt.data
+
+      if (!id || !email_addresses) {
+        return new Response('Error occurred -- missing data', {
+          status: 400
+        })
+      }
+
+      const user = {
+        clerkUserId: id,
+        email: email_addresses[0].email_address,
+        ...(first_name ? { firstName: first_name } : {}),
+        ...(last_name ? { lastName: last_name } : {}),
+        ...(image_url ? { imageUrl: image_url } : {})
+      }
+
+      await createUser(user as User)
+    }
+
+    // Return a 200 status code to acknowledge receipt of the webhook
+    return new Response('Webhook received', { status: 200 })
+  } catch (err) {
+    console.error('Error verifying webhook:', err)
+    return new Response('Error verifying webhook', { status: 400 })
+  }
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app ===
+--- File: globals.css ---
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+
+    --primary: 220.9 39.3% 11%;
+    --primary-foreground: 210 20% 98%;
+
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 224 71.4% 4.1%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 20% 98%;
+
+    --card: 224 71.4% 4.1%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 210 20% 98%;
+    --primary-foreground: 220.9 39.3% 11%;
+
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 216 12.2% 83.9%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app ===
+--- File: layout.tsx ---
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import { ClerkProvider } from '@clerk/nextjs'
+
+import Header from '@/components/header'
+import Footer from '@/components/footer'
+import { ThemeProvider } from '@/components/theme-provider'
+
+import './globals.css'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'ExpenseScout',
+  description: 'Generated by create next app'
+}
+
+export default function RootLayout({
+  children
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <ClerkProvider>
+      <html
+        lang='en'
+        className='scroll-smooth antialiased'
+        suppressHydrationWarning
+      >
+        <body className={`flex min-h-screen flex-col ${inter.className}`}>
+          <ThemeProvider
+            enableSystem
+            attribute='class'
+            defaultTheme='system'
+            disableTransitionOnChange
+          >
+            <Header />
+            <main className='grow'>{children}</main>
+            <Footer />
+          </ThemeProvider>
+        </body>
+      </html>
+    </ClerkProvider>
+  )
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app ===
+--- File: page.tsx ---
+// /c/Users/hp/desktop/clerk-webhooks/app/page.tsx
+import { currentUser } from '@clerk/nextjs/server';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+
+export default async function Home() {
+  const user = await currentUser();
+
+  if (user) {
+    // If user is logged in, redirect to the tracker dashboard
+    redirect('/dashboard');
+  }
+
+  return (
+    <section className='py-24'>
+      <div className='container text-center'>
+        <h1 className='text-4xl font-bold mb-6'>Welcome to ExpenseScout</h1>
+        <p className="mb-8 text-lg text-gray-600">
+          Manage your enterprise assets and expenses efficiently.
+        </p>
+        <div className="space-x-4">
+          <Link href="/sign-in" className="px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
+            Sign In
+          </Link>
+          <Link href="/sign-up" className="px-6 py-3 border border-primary text-primary rounded-md hover:bg-primary/10">
+            Sign Up
+          </Link>
+        </div>
+        <p className="mt-10 text-sm text-gray-500">
+          This is the public landing page.
+          Authenticated users will be redirected to their dashboard.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/protected/client ===
+--- File: page.tsx ---
+'use client'
+
+import { useUser } from '@clerk/nextjs'
+
+export default function Page() {
+  const { isLoaded, isSignedIn, user } = useUser()
+
+  if (!isLoaded || !isSignedIn) {
+    return null
+  }
+
+  return (
+    <section className='py-24'>
+      <div className='container'>
+        <h1 className='text-3xl font-bold'>This is a client-side page</h1>
+        <p className='mt-4'>You are logged in as {user?.firstName}</p>
+      </div>
+    </section>
+  )
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/protected/server ===
+--- File: page.tsx ---
+import { currentUser } from '@clerk/nextjs/server'
+
+export default async function Page() {
+  const user = await currentUser()
+
+  return (
+    <section className='py-24'>
+      <div className='container'>
+        <h1 className='text-3xl font-bold'>This is a server-side page</h1>
+        <p className='mt-4'>You are logged in as {user?.firstName}</p>
+      </div>
+    </section>
+  )
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/sign-in/[[...sign-in]] ===
+--- File: page.tsx ---
+import { SignIn } from '@clerk/nextjs'
+
+export default function Page() {
+  return (
+    <section className='py-24'>
+      <div className='container flex items-center justify-center'>
+        <SignIn />
+      </div>
+    </section>
+  )
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/app/sign-up/[[...sign-up]] ===
+--- File: page.tsx ---
+import { SignUp } from '@clerk/nextjs'
+
+export default function Page() {
+  return (
+    <section className='py-24'>
+      <div className='container flex items-center justify-center'>
+        <SignUp />
+      </div>
+    </section>
+  )
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components ===
+--- File: footer.tsx ---
+export default function Footer() {
+  return (
+    <footer className='py-4'>
+      <div className='container'>
+        <p className='text-center text-sm text-gray-500'>
+          &copy; {new Date().getFullYear()} Your Company. All rights reserved.
+        </p>
+      </div>
+    </footer>
+  )
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components ===
+--- File: header.tsx ---
+import Link from 'next/link'
+import { SignInButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
+
+import { ThemeToggle } from '@/components/theme-toggle'
+import { Button } from '@/components/ui/button'
+
+export default function Header() {
+  return (
+    <header className='py-4'>
+      <nav className='container flex items-center justify-between'>
+        <ul className='flex gap-10 text-sm font-medium'>
+          <li>
+            <Link href='/'>Home</Link>
+          </li>
+          <li>
+            <Link href='/protected/server'>Protected (server)</Link>
+          </li>
+          <li>
+            <Link href='/protected/client'>Protected (client)</Link>
+          </li>
+          <li>
+            <Link href='/api/me'>Who am I?</Link>
+          </li>
+        </ul>
+
+        <div className='flex items-center justify-between gap-6'>
+          <ThemeToggle />
+
+          <SignedOut>
+            <SignInButton mode='modal'>
+              <Button size='sm'>Sign in</Button>
+            </SignInButton>
+          </SignedOut>
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+        </div>
+      </nav>
+    </header>
+  )
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components ===
+--- File: theme-provider.tsx ---
+'use client'
+
+import * as React from 'react'
+import { ThemeProvider as NextThemesProvider } from 'next-themes'
+import { type ThemeProviderProps } from 'next-themes/dist/types'
+
+export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components ===
+--- File: theme-toggle.tsx ---
+'use client'
+
+import { Moon, Sun } from 'lucide-react'
+import { useTheme } from 'next-themes'
+
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+
+import useMounted from '@/hooks/use-mounted'
+
+export function ThemeToggle() {
+  const { setTheme, resolvedTheme } = useTheme()
+
+  const mounted = useMounted()
+  if (!mounted) return null
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant='ghost' size='icon'>
+          {resolvedTheme === 'dark' ? (
+            <Sun className='h-5 w-5 text-orange-300' />
+          ) : (
+            <Moon className='h-5 w-5' />
+          )}
+
+          <span className='sr-only'>Toggle theme</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align='end'>
+        <DropdownMenuItem onClick={() => setTheme('light')}>
+          Light
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('dark')}>
+          Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme('system')}>
+          System
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: AddAssetModal.tsx ---
+// components/tracker/AddAssetModal.tsx
+"use client";
+import React, { useState, useRef, ChangeEvent, DragEvent, useEffect } from "react";
+import { Briefcase, Search, X, Check, ChevronDown, ImageIcon, MapPin, UserPlus } from "lucide-react";
+import Image from "next/image";
+import userImgPlaceholder from "../../public/next.svg"; // Corrected path to access from public directory
+import { useOrganization, useOrganizationList, useUser } from "@clerk/nextjs";
+
+// Define a simple type for organization members fetched from Clerk
+interface OrgMember {
+  id: string; // This will be clerkUserId
+  identifier: string; // email or username
+  firstName?: string | null;
+  lastName?: string | null;
+  imageUrl?: string;
+  role: string;
+}
+
+interface AddAssetModalProps {
+  onClose: () => void;
+  onAssetAdded: () => void; // Callback to refresh asset list
+}
+
+const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose, onAssetAdded }) => {
+  const { organization } = useOrganization(); // For current org ID
+  const { user } = useUser(); // For current user, if needed
+
+  const [step, setStep] = useState(1);
+  const [title, setTitle] = useState("");
+  const [model, setModel] = useState("");
+  const [serialNumber, setSerialNumber] = useState("");
+  const [assetImageFile, setAssetImageFile] = useState<File | null>(null);
+  const [assetImagePreview, setAssetImagePreview] = useState<string | null>(null);
+  const [description, setDescription] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [status, setStatus] = useState("Active"); // Default status
+
+  const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
+  const [selectedAssigneeClerkId, setSelectedAssigneeClerkId] = useState<string | null>(null);
+  const [orgMembers, setOrgMembers] = useState<OrgMember[]>([]);
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
+
+  const [errors, setErrors] = useState<{ [key: string]: string | boolean }>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const fetchOrgMembers = async () => {
+      if (organization) {
+        try {
+          const memberships = await organization.getMemberships();
+          const members = memberships.data.map(mem => ({
+            id: mem.publicUserData.userId!, // Clerk User ID
+            identifier: mem.publicUserData.identifier,
+            firstName: mem.publicUserData.firstName,
+            lastName: mem.publicUserData.lastName,
+            imageUrl: mem.publicUserData.imageUrl,
+            role: mem.role,
+          }));
+          setOrgMembers(members);
+        } catch (error) {
+          console.error("Failed to fetch organization members:", error);
+        }
+      }
+    };
+    fetchOrgMembers();
+  }, [organization]);
+
+  const validateStep1 = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!title.trim()) newErrors.title = "Title is required.";
+    if (!model.trim()) newErrors.model = "Model is required.";
+    if (!serialNumber.trim()) newErrors.serialNumber = "Serial number is required.";
+    if (!assetImageFile) newErrors.profileImage = "Asset image is required."; // Changed to profileImage for consistency with previous error key
+    if (!description.trim()) newErrors.description = "Description is required.";
+    if (latitude && isNaN(parseFloat(latitude))) newErrors.latitude = "Invalid latitude.";
+    if (longitude && isNaN(parseFloat(longitude))) newErrors.longitude = "Invalid longitude.";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleContinue = () => {
+    if (validateStep1()) {
+      setStep(2); // Assuming step 2 is for assignment or confirmation
+                   // For this structure, we might combine it if assignment is optional on create
+    }
+  };
+  
+  const handleFormSubmit = async () => {
+    if (!validateStep1()) return; // Re-validate before submission
+
+    if (!organization) {
+        setFormError("No active organization selected.");
+        return;
+    }
+    setIsLoading(true);
+    setFormError(null);
+
+    // For image upload, you'd typically use FormData
+    // However, for simplicity in this example, if you store image URLs, 
+    // you'd first upload the image to a storage service (e.g., Cloudinary, S3, Next.js public folder if small scale)
+    // and get back a URL. Here, we'll assume imageUrl is directly provided or handled elsewhere.
+    // For now, we'll just pass the filename or a placeholder.
+    // A more robust solution involves multipart/form-data for image uploads.
+
+    const assetData = {
+      title,
+      model,
+      serialNumber,
+      description,
+      status,
+      latitude: latitude ? parseFloat(latitude) : undefined,
+      longitude: longitude ? parseFloat(longitude) : undefined,
+      // imageUrl: assetImagePreview, // Or the URL from your storage service
+      assignedToClerkUserId: selectedAssigneeClerkId,
+      clerkOrganizationId: organization.id, // This comes from useOrganization()
+    };
+
+    try {
+      const response = await fetch('/api/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assetData),
+        credentials: 'include', // Add this to include auth cookies
+      });
+
+      if (!response.ok) {
+        const errorText = `Failed to create asset (${response.status})`;
+        console.error(errorText);
+        throw new Error(errorText);
+      }
+      onAssetAdded(); // Callback to refresh parent component's asset list
+      onClose(); // Close modal on success
+    } catch (error: any) {
+      setFormError(error.message || "An unexpected error occurred.");
+      console.error("Asset creation error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAssetImageFile(file);
+      setAssetImagePreview(URL.createObjectURL(file));
+      setErrors(prev => ({...prev, profileImage: false}));
+    }
+  };
+
+  const handleImageDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      setAssetImageFile(file);
+      setAssetImagePreview(URL.createObjectURL(file));
+      setErrors(prev => ({...prev, profileImage: false}));
+    }
+  };
+  
+  const filteredMembers = orgMembers.filter(member =>
+    `${member.firstName || ''} ${member.lastName || ''} ${member.identifier}`.toLowerCase().includes(memberSearchQuery.toLowerCase())
+  );
+
+  const selectedAssigneeDetails = selectedAssigneeClerkId
+    ? orgMembers.find(m => m.id === selectedAssigneeClerkId)
+    : null;
+
+
+  // In a real app, step 2 would be distinct or part of a different flow (e.g., "Assign Asset" button on table row)
+  // For this modal, we'll assume assignment is done in Step 1 or directly on submit.
+  // The original two-step process was more for a different kind of invitation flow.
+  // We simplify by putting assignment directly in the asset creation form.
+
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center px-4">
+      <div className="bg-white w-[600px] max-w-[95%] rounded-xl p-6 shadow-xl relative max-h-[90vh] overflow-y-auto">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-black disabled:opacity-50"
+          disabled={isLoading}
+        >
+          <X size={18} />
+        </button>
+
+        {/* Simplified to one step for asset creation */}
+        <>
+          <div className="flex justify-center mb-4">
+            <div className="bg-[#e4f7ec] p-3 rounded-full">
+              <Briefcase size={22} className="text-[#34BC68]" />
+            </div>
+          </div>
+
+          <h2 className="text-lg font-semibold text-center mb-1">Record New Asset</h2>
+          <p className="text-sm text-gray-600 text-center mb-6">
+            Fill in the details for the new asset.
+          </p>
+
+          {formError && <p className="text-sm text-red-500 text-center mb-3">{formError}</p>}
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm text-black font-medium">Title <span className="text-red-500">*</span></label>
+              <input value={title} onChange={(e) => { setTitle(e.target.value); setErrors(prev => ({ ...prev, title: false })); }} placeholder="e.g., Laptop, Office Desk"
+                className={`w-full border ${errors.title ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+              {errors.title && typeof errors.title === 'string' && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
+            </div>
+
+            <div className="flex space-x-4">
+              <div className="w-1/2">
+                <label className="text-sm font-medium text-black">Model <span className="text-red-500">*</span></label>
+                <input value={model} onChange={(e) => { setModel(e.target.value); setErrors(prev => ({ ...prev, model: false })); }} placeholder="e.g., MacBook Pro 16 M3"
+                  className={`w-full border ${errors.model ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+                 {errors.model && typeof errors.model === 'string' && <p className="text-xs text-red-500 mt-1">{errors.model}</p>}
+              </div>
+              <div className="w-1/2">
+                <label className="text-sm font-medium text-black">Serial Number <span className="text-red-500">*</span></label>
+                <input value={serialNumber} onChange={(e) => { setSerialNumber(e.target.value); setErrors(prev => ({ ...prev, serialNumber: false })); }} placeholder="e.g., C02XXXXXXG8WP"
+                  className={`w-full border ${errors.serialNumber ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+                {errors.serialNumber && typeof errors.serialNumber === 'string' && <p className="text-xs text-red-500 mt-1">{errors.serialNumber}</p>}
+              </div>
+            </div>
+            
+            {/* Asset Image */}
+            <div className="mb-4">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-start">
+                <label className="text-sm font-medium text-black mb-2 sm:mb-0">Asset Image <span className="text-red-500">*</span></label>
+                <div className="flex items-center space-x-3 sm:space-x-5 w-full sm:w-auto">
+                  <div onClick={() => fileInputRef.current?.click()} className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 rounded-full border border-gray-300 cursor-pointer">
+                    {assetImagePreview ? (
+                      <Image src={assetImagePreview} alt="Preview" width={48} height={48} className="rounded-full object-cover" />
+                    ) : ( <ImageIcon size={20} className="text-gray-500" /> )}
+                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  </div>
+                  <div onClick={() => fileInputRef.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={handleImageDrop}
+                    className={`flex-grow border border-dashed ${errors.profileImage ? "border-red-400" : "border-gray-300"} rounded-md p-2 cursor-pointer hover:border-[#6941C6] text-sm text-gray-500`}>
+                    <p className="leading-snug text-center sm:text-left">
+                      <span className="text-[#6941C6] font-medium">Click to upload</span> or drag and drop
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {errors.profileImage && typeof errors.profileImage === 'string' && (
+                <p className="text-sm text-red-500 mt-1 text-right sm:text-left sm:ml-[calc(3rem+1.25rem)]">{errors.profileImage}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-black">Description <span className="text-red-500">*</span></label>
+              <textarea value={description} onChange={(e) => { setDescription(e.target.value); setErrors(prev => ({ ...prev, description: false })); }} placeholder="Detailed description of the asset"
+                className={`w-full border ${errors.description ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none min-h-[80px]`} />
+              {errors.description && typeof errors.description === 'string' && <p className="text-xs text-red-500 mt-1">{errors.description}</p>}
+            </div>
+
+            <div className="flex space-x-4">
+              <div className="w-1/2">
+                <label className="text-sm font-medium text-black flex items-center">
+                  <MapPin size={14} className="mr-1 text-gray-500" /> Latitude
+                </label>
+                <input type="number" value={latitude} onChange={(e) => setLatitude(e.target.value)} placeholder="e.g., 34.0522"
+                  className={`w-full border ${errors.latitude ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+                {errors.latitude && typeof errors.latitude === 'string' && <p className="text-xs text-red-500 mt-1">{errors.latitude}</p>}
+              </div>
+              <div className="w-1/2">
+                <label className="text-sm font-medium text-black flex items-center">
+                  <MapPin size={14} className="mr-1 text-gray-500" /> Longitude
+                </label>
+                <input type="number" value={longitude} onChange={(e) => setLongitude(e.target.value)} placeholder="e.g., -118.2437"
+                  className={`w-full border ${errors.longitude ? "border-red-400" : "border-gray-300"} rounded-md py-2 px-3 text-sm outline-none`} />
+                {errors.longitude && typeof errors.longitude === 'string' && <p className="text-xs text-red-500 mt-1">{errors.longitude}</p>}
+              </div>
+            </div>
+            
+            <div>
+                <label className="text-sm font-medium text-black">Status</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm outline-none">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+            </div>
+
+            {/* Assign User */}
+            <div className="relative">
+              <label className="text-sm text-black font-medium flex items-center">
+                <UserPlus size={14} className="mr-1 text-gray-500" /> Assign to Member (Optional)
+              </label>
+              <div
+                className={`w-full border border-gray-300 rounded-md py-2 px-3 text-sm flex justify-between items-center cursor-pointer`}
+                onClick={() => setAssigneeDropdownOpen(!assigneeDropdownOpen)}
+              >
+                <span>
+                  {selectedAssigneeDetails ? `${selectedAssigneeDetails.firstName || ''} ${selectedAssigneeDetails.lastName || ''} (${selectedAssigneeDetails.identifier})` : "Select member"}
+                </span>
+                <ChevronDown size={16} className="text-gray-500" />
+              </div>
+
+              {assigneeDropdownOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                  <input
+                    type="text"
+                    placeholder="Search members..."
+                    value={memberSearchQuery}
+                    onChange={(e) => setMemberSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 border-b border-gray-200 text-sm outline-none"
+                  />
+                  {filteredMembers.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center space-x-3 px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => {
+                        setSelectedAssigneeClerkId(member.id);
+                        setAssigneeDropdownOpen(false);
+                        setMemberSearchQuery("");
+                      }}
+                    >
+                      <Image
+                        src={member.imageUrl || userImgPlaceholder}
+                        alt={member.identifier}
+                        width={24}
+                        height={24}
+                        className="w-6 h-6 rounded-full object-cover"
+                      />
+                      <span className="text-sm">{member.firstName || ''} {member.lastName || ''} ({member.identifier}) - {member.role}</span>
+                    </div>
+                  ))}
+                  {filteredMembers.length === 0 && <p className="text-sm text-gray-500 p-3">No members found.</p>}
+                </div>
+              )}
+            </div>
+          </div>
+
+
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-8">
+            <button onClick={onClose} disabled={isLoading}
+              className="px-6 py-2 text-sm border border-gray-300 rounded-md bg-white text-black hover:bg-gray-50 disabled:opacity-50 w-full sm:w-auto">
+              Cancel
+            </button>
+            <button onClick={handleFormSubmit} disabled={isLoading || !organization}
+              className="px-6 py-2 text-sm rounded-md bg-black text-white hover:bg-gray-800 disabled:opacity-50 disabled:bg-gray-400 w-full sm:w-auto">
+              {isLoading ? "Saving..." : "Save Asset"}
+            </button>
+          </div>
+        </>
+      </div>
+    </div>
+  );
+};
+
+export default AddAssetModal;
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: AddEmployeeModal.tsx ---
+"use client";
+import React, { useState, ChangeEvent } from "react";
+import { X, Plus } from "lucide-react";
+import Image from "next/image";
+
+interface Member {
+  email: string;
+  role: string;
+  valid: boolean;
+}
+
+interface AddEmployeeModalProps {
+  onClose: () => void;
+}
+
+const AddEmployeeModal: React.FC<AddEmployeeModalProps> = ({ onClose }) => {
+  const [members, setMembers] = useState<Member[]>([
+    { email: "", role: "", valid: true },
+    { email: "", role: "", valid: true },
+  ]);
+
+  const handleAddRow = () => {
+    if (members.length < 5) {
+      setMembers([...members, { email: "", role: "", valid: true }]);
+    }
+  };
+
+  const validateEmail = (email: string) => {
+    // Basic validation, can be improved
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.endsWith("@gmail.com");
+  };
+
+  const handleChange = (index: number, field: keyof Omit<Member, 'valid'>, value: string) => {
+    const updated = [...members];
+    updated[index][field] = value;
+
+    if (field === "email") {
+      updated[index].valid = validateEmail(value) || value === ""; // Valid if empty initially
+    }
+
+    setMembers(updated);
+  };
+
+  const isFormValid = members.every(
+    (member) =>
+      member.email.trim() &&
+      member.role.trim() &&
+      validateEmail(member.email)
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center px-4">
+      <div className="bg-white w-[540px] max-w-[95%] rounded-xl p-6 shadow-xl relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-black"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="flex justify-center mb-4">
+          <div className="flex -space-x-4">
+            {[1, 2, 3].map((i) => (
+              <Image
+                key={i}
+                src="/assets/kob.jpg"
+                alt="User"
+                width={32}
+                height={32}
+                className="w-8 h-8 rounded-full border-2 border-white"
+              />
+            ))}
+          </div>
+        </div>
+
+        <h2 className="text-center text-lg font-semibold text-black">
+          Invite your team
+        </h2>
+        <p className="text-sm text-gray-600 text-center mt-1 mb-6">
+          Add new users to invite to the team and notify them with email also add their roles.
+        </p>
+
+        <div className="space-y-4">
+          {members.map((member, index) => (
+            <div key={index} className="flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-black mb-1">
+                  Email<span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="example@gmail.com"
+                  value={member.email}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => handleChange(index, "email", e.target.value)}
+                  className={`w-full border rounded-md px-3 py-2 text-sm outline-none ${
+                    member.email && !member.valid
+                      ? "border-red-500 focus:border-red-500"
+                      : "border-gray-300 focus:border-blue-500"
+                  }`}
+                />
+                {member.email && !member.valid && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Must be a valid @gmail.com email.
+                  </p>
+                )}
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-black mb-1">
+                  Role<span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={member.role}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => handleChange(index, "role", e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm outline-none focus:border-blue-500"
+                >
+                  <option value="">Select role</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Team Member">Team Member</option>
+                  <option value="Viewer">Viewer</option>
+                </select>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {members.length < 5 && (
+          <div
+            className="mt-4 flex items-center space-x-2 text-sm text-[#34BC68] cursor-pointer font-medium"
+            onClick={handleAddRow}
+          >
+            <div className="w-5 h-5 flex items-center justify-center rounded-full bg-[#e4f7ec]">
+              <Plus size={14} className="text-[#34BC68]" />
+            </div>
+            <span>Add another</span>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row justify-center sm:space-x-4 mt-8 space-y-2 sm:space-y-0">
+          <button
+            onClick={onClose}
+            className="px-4 sm:px-24 py-2 border border-gray-300 rounded-md text-sm text-black w-full sm:w-auto"
+          >
+            Cancel
+          </button>
+          <button
+            disabled={!isFormValid}
+            onClick={onClose} // Assuming this will handle form submission or just close
+            className={`px-4 sm:px-24 py-2 rounded-md text-sm w-full sm:w-auto ${
+              isFormValid
+                ? "bg-black text-white hover:bg-gray-800"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AddEmployeeModal;
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: AssetPageHeader.tsx ---
+"use client";
+import React, { useState } from "react";
+import { PlusCircle, Upload } from "lucide-react";
+import AddAssetModal from "./AddAssetModal"; // Updated import
+
+interface AssetPageHeaderProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}
+
+const AssetPageHeader: React.FC<AssetPageHeaderProps> = ({ activeTab, setActiveTab }) => {
+  const [isAddAssetOpen, setIsAddAssetOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const tabs = ["All Assets", "Not Active"];
+
+  const handleAssetAdded = () => {
+    // Increment the refresh trigger to cause a re-render of child components
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  return (
+    <div className="w-full px-4 md:px-6 lg:px-10 relative"> {/* Adjusted padding */}
+      {isAddAssetOpen && <AddAssetModal 
+        onClose={() => setIsAddAssetOpen(false)} 
+        onAssetAdded={handleAssetAdded} 
+      />}
+
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between pt-6 pb-4 space-y-3 md:space-y-0">
+        <div className="flex items-center space-x-3 md:space-x-4">
+          <h2 className="text-xl md:text-2xl font-semibold text-black">Assets</h2>
+          <div className="bg-gray-100 text-green-600 text-xs md:text-sm px-2 py-1 rounded-md font-medium">
+            100 {/* This should be dynamic */}
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
+          <button
+            onClick={() => setIsAddAssetOpen(true)}
+            className="flex items-center justify-center px-4 py-2 bg-[#34BC68] text-white rounded-md text-sm font-medium hover:bg-green-700 w-full sm:w-auto"
+          >
+            <PlusCircle size={16} className="mr-2" />
+            New Asset
+          </button>
+        </div>
+      </div>
+
+      <div className="flex space-x-4 md:space-x-6 pt-2 border-b border-gray-200">
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`text-sm font-medium pb-2.5 whitespace-nowrap ${
+              activeTab === tab
+                ? "text-[#34BC68] border-b-2 border-[#34BC68]"
+                : "text-gray-600 hover:text-black"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default AssetPageHeader;
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: AssetTable.tsx ---
+// components/tracker/AssetTable.tsx
+"use client";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Filter, List, LayoutGrid, Search, MoreVertical, ArrowLeft, ArrowRight, ExternalLink, Edit2, Trash2, MapPin, Image as ImageIcon } from "lucide-react";
+import { useOrganization, useAuth } from "@clerk/nextjs"; // useAuth for orgRole
+import Image from "next/image"; // If you use Next Image for asset pictures
+import placeholderAssetImg from "../../public/next.svg"; // Placeholder
+
+// Define a more detailed Asset type matching your Prisma model and API response
+interface Asset {
+  id: string;
+  title: string;
+  model: string;
+  serialNumber: string;
+  imageUrl?: string | null;
+  description: string;
+  status: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  clerkOrganizationId: string;
+  assignedToClerkUserId?: string | null;
+  createdAt: string; // Dates will be strings from JSON
+  updatedAt: string;
+  assignedTo?: { // Nested object for assignee details
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    imageUrl?: string | null;
+    clerkUserId: string;
+  } | null;
+}
+
+interface AssetTableProps {
+  // Prop to trigger refresh, e.g., after adding an asset
+  refreshTrigger: number; 
+}
+
+
+const AssetTable: React.FC<AssetTableProps> = ({ refreshTrigger }) => {
+  const { organization, isLoaded: orgLoaded } = useOrganization();
+  const { orgRole, isLoaded: authLoaded } = useAuth(); // Get current user's role in the org
+
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+  const [activeMenuAssetId, setActiveMenuAssetId] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+  // TODO: Implement Edit Modal State
+  // const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+
+  const fetchAssets = useCallback(async () => {
+    if (!orgLoaded || !authLoaded || !organization) {
+      // console.log("Waiting for organization or auth to load...");
+      if (orgLoaded && authLoaded && !organization) {
+         setIsLoading(false); // Not part of any org, or no org selected
+         setAssets([]);
+      }
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/assets`, {
+        credentials: 'include', // Add this to include auth cookies
+      });
+      
+      if (!response.ok) {
+        const errorText = `Failed to fetch assets (${response.status})`;
+        console.error(errorText);
+        throw new Error(errorText);
+      }
+      
+      const data: Asset[] = await response.json();
+      setAssets(data);
+    } catch (err: any) {
+      setError(err.message || "An unknown error occurred.");
+      setAssets([]); // Clear assets on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, [organization, orgLoaded, authLoaded, refreshTrigger]); // Add refreshTrigger
+
+  useEffect(() => {
+    fetchAssets();
+  }, [fetchAssets]);
+
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setActiveMenuAssetId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectItem = (id: string) => {
+    setSelectedItems(prev => prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]);
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedItems(currentData.map(item => item.id));
+    } else {
+      setSelectedItems([]);
+    }
+  };
+  
+  const handleDeleteAsset = async (assetId: string) => {
+    if (!confirm("Are you sure you want to delete this asset?")) return;
+    try {
+        setActiveMenuAssetId(null); // Close menu
+        const response = await fetch(`/api/assets/${assetId}`, { method: 'DELETE' });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Failed to delete asset (${response.status})`);
+        }
+        fetchAssets(); // Refresh list
+    } catch (err: any) {
+        console.error("Delete error:", err);
+        alert(`Error deleting asset: ${err.message}`);
+    }
+  };
+
+  const handleEditAsset = (asset: Asset) => {
+    // setEditingAsset(asset);
+    // setIsEditModalOpen(true);
+    setActiveMenuAssetId(null);
+    alert(`Editing ${asset.title} - (Implement Edit Modal)`);
+    // TODO: You'll need an EditAssetModal similar to AddAssetModal, pre-filled with asset data.
+  };
+
+  const filteredAssets = assets.filter((asset) =>
+    `${asset.title} ${asset.model} ${asset.serialNumber} ${asset.status} ${asset.assignedTo?.firstName || ''} ${asset.assignedTo?.lastName || ''} ${asset.assignedTo?.email || ''}`
+      .toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const totalPages = Math.ceil(filteredAssets.length / itemsPerPage);
+  const currentData = filteredAssets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      setActiveMenuAssetId(null);
+    }
+  };
+
+  if (!orgLoaded || !authLoaded) {
+    return <div className="text-center py-10">Loading organization data...</div>;
+  }
+
+  if (!organization) {
+    return <div className="text-center py-10 bg-white rounded-xl m-2 md:m-6 border border-dashed border-gray-300">Please select or create an organization to view assets.</div>;
+  }
+  
+  if (isLoading) return <div className="text-center py-10">Loading assets...</div>;
+  if (error) return <div className="text-center py-10 text-red-500">Error: {error}</div>;
+
+
+  const canManageAssets = orgRole === 'org:admin'; // Admins can edit/delete
+
+  return (
+    <div className="px-4 md:px-6 lg:px-10 pt-3">
+        {/* Search and Filter Bar - existing structure */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">
+          <div className="flex items-center w-full md:w-auto md:max-w-md bg-transparent py-1">
+            <Search className="text-gray-400 mr-2.5" size={18} />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search assets by title, model, serial, assignee..."
+              className="text-sm outline-none placeholder-gray-500 bg-transparent w-full"/>
+          </div>
+          <div className="flex items-center space-x-2 mt-2 md:mt-0">
+            <button className="flex items-center text-sm px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+              <Filter size={15} className="mr-1.5" />Filter
+            </button>
+            {/* View toggle buttons could go here */}
+          </div>
+        </div>
+      
+      <div className="mt-4 bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-sm">
+        <table className="w-full text-left text-sm min-w-[900px]">
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th className="px-4 py-3 w-12">
+                <input type="checkbox" className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  onChange={handleSelectAll} checked={selectedItems.length === currentData.length && currentData.length > 0} />
+              </th>
+              <th className="px-4 py-3">Asset (Title/Model)</th>
+              <th className="px-4 py-3">Serial No.</th>
+              <th className="px-4 py-3">Image</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Assigned To</th>
+              <th className="px-4 py-3">Location</th>
+              <th className="px-4 py-3 w-12"></th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-700">
+            {currentData.map((asset) => (
+            <tr key={asset.id} className="border-t border-gray-200 hover:bg-gray-50">
+                <td className="px-4 py-3">
+                  <input type="checkbox" className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                    checked={selectedItems.includes(asset.id)} onChange={() => handleSelectItem(asset.id)} />
+                </td>
+                <td className="px-4 py-3">
+                  <div className="font-medium text-gray-800">{asset.title}</div>
+                  <div className="text-xs text-gray-500">{asset.model}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-medium text-gray-700">{asset.serialNumber}</span>
+                </td>
+                <td className="px-4 py-3">
+                  {asset.imageUrl ? (
+                    <a href={asset.imageUrl} target="_blank" rel="noopener noreferrer" className="hover:opacity-80">
+                      <Image src={asset.imageUrl} alt={asset.title} width={40} height={40} className="rounded object-cover"/>
+                    </a>
+                  ) : (
+                    <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-gray-400">
+                      <ImageIcon size={20}/>
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full font-medium ${
+                      asset.status.toLowerCase() === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                    <span className={`w-2 h-2 rounded-full mr-1.5 ${
+                        asset.status.toLowerCase() === "active" ? "bg-green-500" : "bg-yellow-500" }`}></span>
+                    {asset.status}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  {asset.assignedTo ? (
+                    <div className="flex items-center space-x-2">
+                        {asset.assignedTo.imageUrl && <Image src={asset.assignedTo.imageUrl} alt="assignee" width={24} height={24} className="rounded-full" />}
+                        <div>
+                            <div className="font-medium text-xs">
+                                {asset.assignedTo.firstName || asset.assignedTo.email?.split('@')[0]} {asset.assignedTo.lastName}
+                            </div>
+                            <div className="text-gray-500 text-[11px]">{asset.assignedTo.email}</div>
+                        </div>
+                    </div>
+                  ) : <span className="text-gray-400 text-xs italic">Unassigned</span>}
+                </td>
+                <td className="px-4 py-3 text-xs">
+                    {asset.latitude && asset.longitude ? (
+                        <a href={`https://www.google.com/maps?q=${asset.latitude},${asset.longitude}`} target="_blank" rel="noopener noreferrer"
+                           className="text-blue-600 hover:underline flex items-center">
+                            <MapPin size={12} className="mr-1"/> View Map
+                        </a>
+                    ) : <span className="text-gray-400 italic">N/A</span>}
+                </td>
+                <td className="px-4 py-3 text-right relative">
+                  {canManageAssets && (
+                    <button onClick={() => setActiveMenuAssetId(asset.id === activeMenuAssetId ? null : asset.id)}
+                      className="text-gray-500 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100">
+                      <MoreVertical size={18} />
+                    </button>
+                  )}
+                  {activeMenuAssetId === asset.id && (
+                    <div ref={dropdownRef} className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-md shadow-lg text-xs z-20 py-1">
+                      <button onClick={() => alert(`Viewing details for ${asset.title}`)} className="w-full text-left block px-3 py-1.5 hover:bg-gray-100 text-gray-700">View Details</button>
+                      <button onClick={() => handleEditAsset(asset)} className="w-full text-left block px-3 py-1.5 hover:bg-gray-100 text-gray-700">Edit Asset</button>
+                      <button onClick={() => handleDeleteAsset(asset.id)} className="w-full text-left block px-3 py-1.5 hover:bg-gray-100 text-red-600">Delete Asset</button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+             {currentData.length === 0 && (
+              <tr><td colSpan={8} className="text-center py-10 text-gray-500">No assets found matching your criteria.</td></tr>
+            )}
+          </tbody>
+        </table>
+
+        {/* Pagination - existing structure */}
+        {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 text-xs text-gray-600">
+          {/* ... pagination buttons ... */}
+        </div>
+        )}
+      </div>
+      {/* {isEditModalOpen && editingAsset && (
+        <EditAssetModal 
+            asset={editingAsset} 
+            onClose={() => setIsEditModalOpen(false)} 
+            onAssetUpdated={fetchAssets}
+        />
+      )} */}
+    </div>
+  );
+};
+
+export default AssetTable;
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: DashboardAssetAnalysis.tsx ---
+"use client";
+import React, { useState, useEffect, useRef } from "react";
+import {
+    Filter,
+    List,
+    LayoutGrid,
+    Search,
+    MoreVertical,
+    ArrowLeft,
+    ArrowRight,
+    ExternalLink, // For view img
+  } from "lucide-react";
+
+interface Asset {
+  name: string;
+  id: string;
+  picture: string;
+  status: "Active" | "Inactive";
+  AssigneeTeam: string;
+  statusColor: "green" | "red";
+}
+
+const DashboardAssetAnalysis: React.FC = () => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const assetsPerPage = 5; // Adjusted for dashboard view
+  const [activeMenuIndex, setActiveMenuIndex] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+
+  const assets: Asset[] = [ // Using the same mock data as AssetTable for consistency
+    {
+      name: "Macbook Pro 16\"",
+      id: "#12FC4V56979",
+      picture: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800",
+      status: "Active",
+      AssigneeTeam: "Marketing",
+      statusColor: "green",
+    },
+    {
+      name: "Dell XPS 13",
+      id: "#88FCV1234",
+      picture: "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=800",
+      status: "Inactive",
+      AssigneeTeam: "Design",
+      statusColor: "red",
+    },
+    {
+      name: "iPhone 15 Pro",
+      id: "#19KD8210",
+      picture: "https://images.unsplash.com/photo-1695026049309-a055ad63f097?auto=format&fit=crop&w=800",
+      status: "Active",
+      AssigneeTeam: "Engineering",
+      statusColor: "green",
+    },
+    {
+      name: "Office Chair Ergo",
+      id: "#45AC2000",
+      picture: "https://images.unsplash.com/photo-1580480055273-228ff5382d6d?auto=format&fit=crop&w=800",
+      status: "Inactive",
+      AssigneeTeam: "HR",
+      statusColor: "red",
+    },
+    {
+      name: "Sony WH-1000XM5",
+      id: "#93VU1029",
+      picture: "https://images.unsplash.com/photo-1629039922688-7a0df9a4dc8c?auto=format&fit=crop&w=800",
+      status: "Active",
+      AssigneeTeam: "Engineering",
+      statusColor: "green",
+    },
+    {
+      name: "Samsung Monitor 27\"",
+      id: "#54FR9210",
+      picture: "https://images.unsplash.com/photo-1550745165-9bc0b252726c?auto=format&fit=crop&w=800",
+      status: "Inactive",
+      AssigneeTeam: "Quality",
+      statusColor: "red",
+    },
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setActiveMenuIndex(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleSelectItem = (id: string) => {
+    setSelectedItems(prev => 
+      prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedItems(currentData.map(item => item.id));
+    } else {
+      setSelectedItems([]);
+    }
+  };
+
+  const filteredAssets = assets.filter((asset) =>
+    `${asset.name} ${asset.id} ${asset.AssigneeTeam}`
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
+  const totalPages = Math.ceil(filteredAssets.length / assetsPerPage);
+
+  const currentData = filteredAssets.slice(
+    (currentPage - 1) * assetsPerPage,
+    currentPage * assetsPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      setActiveMenuIndex(null);
+    }
+  };
+
+  return (
+    <div className="px-0 md:px-0 lg:px-0"> {/* Container padding handled by parent page */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
+        <div className="mb-4 sm:mb-5">
+          <h3 className="text-lg font-semibold text-gray-900">Asset Analysis</h3>
+          <p className="text-sm text-gray-500 mt-0.5">Manage your assets and track current usage status across teams.</p>
+        </div>
+        
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white border border-gray-200 px-3 sm:px-4 py-2.5 rounded-lg mb-4">
+          <div className="flex items-center w-full md:w-auto md:max-w-sm bg-transparent py-1">
+            <Search className="text-gray-400 mr-2" size={16} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search assets..."
+              className="text-xs sm:text-sm outline-none placeholder-gray-500 bg-transparent w-full"
+            />
+          </div>
+          <div className="flex items-center space-x-2 mt-2 md:mt-0">
+            <button className="flex items-center text-xs sm:text-sm px-2.5 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+              <Filter size={14} className="mr-1" />
+              Filter
+            </button>
+            <button className="p-1.5 rounded-md bg-gray-100 hover:bg-gray-200">
+              <List size={16} className="text-gray-700" />
+            </button>
+            <button className="p-1.5 rounded-md bg-white border border-gray-300 hover:bg-gray-50">
+              <LayoutGrid size={16} className="text-gray-700" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="border border-gray-200 rounded-lg overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[600px]">
+            <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider">
+              <tr>
+                <th className="px-3 sm:px-4 py-3 w-10 sm:w-12">
+                  <input 
+                    type="checkbox" 
+                    className="form-checkbox h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                    onChange={handleSelectAll}
+                    checked={selectedItems.length === currentData.length && currentData.length > 0}
+                  />
+                </th>
+                <th className="px-3 sm:px-4 py-3">Name</th>
+                <th className="px-3 sm:px-4 py-3">Asset ID</th>
+                <th className="px-3 sm:px-4 py-3 hidden md:table-cell">Picture</th>
+                <th className="px-3 sm:px-4 py-3">Status</th>
+                <th className="px-3 sm:px-4 py-3 hidden lg:table-cell">Assignee Team</th>
+                <th className="px-3 sm:px-4 py-3 w-10 sm:w-12"></th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-700 divide-y divide-gray-200">
+              {currentData.map((asset, index) => (
+              <tr key={asset.id} className="hover:bg-gray-50">
+                  <td className="px-3 sm:px-4 py-3">
+                    <input 
+                      type="checkbox" 
+                      className="form-checkbox h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      checked={selectedItems.includes(asset.id)}
+                      onChange={() => handleSelectItem(asset.id)}
+                    />
+                  </td>
+                  <td className="px-3 sm:px-4 py-3">
+                    <div className="font-medium text-gray-800 text-xs sm:text-sm">{asset.name}</div>
+                  </td>
+                  <td className="px-3 sm:px-4 py-3">
+                    <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-600">{asset.id}</span>
+                  </td>
+                  <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
+                    <a
+                      href={asset.picture}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center text-blue-500 font-medium text-xs hover:text-blue-600 hover:underline"
+                    >
+                      View
+                      <ExternalLink size={10} className="ml-0.5" />
+                    </a>
+                  </td>
+                  <td className="px-3 sm:px-4 py-3">
+                    <div
+                      className={`inline-flex items-center text-[11px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${
+                        asset.statusColor === "green" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                          asset.statusColor === "green" ? "bg-green-500" : "bg-red-500"
+                        }`}
+                      ></span>
+                      {asset.status}
+                    </div>
+                  </td>
+                  <td className="px-3 sm:px-4 py-3 font-medium hidden lg:table-cell">
+                  <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-600">
+                    {asset.AssigneeTeam}
+                  </span>
+                  </td>
+                  <td className="px-3 sm:px-4 py-3 text-right relative">
+                    <button 
+                      onClick={() => setActiveMenuIndex(index === activeMenuIndex ? null : index)}
+                      className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100"
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                    {activeMenuIndex === index && (
+                      <div
+                        ref={dropdownRef}
+                        className="absolute right-0 mt-1 w-28 bg-white border border-gray-200 rounded-md shadow-lg text-xs z-10 py-1"
+                      >
+                        <a href="#" className="block px-2.5 py-1.5 hover:bg-gray-100 text-gray-700">Details</a>
+                        <a href="#" className="block px-2.5 py-1.5 hover:bg-gray-100 text-red-600">Delete</a>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+               {currentData.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-8 text-gray-500 text-sm">
+                    No assets found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+  
+          {totalPages > 1 && (
+          <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-t border-gray-200 text-xs text-gray-600">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              className="flex items-center px-2 py-1 border border-gray-300 bg-white rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={currentPage === 1}
+            >
+              <ArrowLeft size={12} className="mr-1" />
+              Prev
+            </button>
+             <span className="font-medium">Page {currentPage} of {totalPages}</span>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              className="flex items-center px-2 py-1 border border-gray-300 bg-white rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ArrowRight size={12} className="ml-1" />
+            </button>
+          </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DashboardAssetAnalysis;
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: DashboardComp.tsx ---
+// components/tracker/DashboardComp.tsx
+"use client";
+import React, { useEffect, useState } from "react";
+// ... other imports
+import { useOrganization, useAuth, OrganizationSwitcher } from "@clerk/nextjs";
+
+// Simplified asset type for dashboard cards
+interface DashboardAssetSummary {
+  totalAssets: number;
+  activeAssets: number;
+  inactiveAssets: number;
+  // Potentially add assetsAssignedToMe for members
+}
+
+const DashboardComp: React.FC = () => {
+  const { organization, isLoaded: orgLoaded } = useOrganization();
+  const { userId, orgRole, isLoaded: authLoaded } = useAuth();
+  const [assetSummary, setAssetSummary] = useState<DashboardAssetSummary | null>(null);
+  const [teamMembersCount, setTeamMembersCount] = useState(0); // You can fetch actual team members
+
+  // Pie chart data should be dynamic now
+  const [pieChartData, setPieChartData] = useState([
+    { name: "Active", value: 0 },
+    { name: "Inactive", value: 0 },
+  ]);
+  
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!orgLoaded || !authLoaded || !organization) return;
+
+      try {
+        // Fetch asset summary (you might create a dedicated API endpoint for this summary)
+        const response = await fetch(`/api/assets`, {
+          credentials: 'include', // Add this to include auth cookies
+        }); // This fetches all assets for the org if admin
+        
+        if (!response.ok) {
+          const errorText = `Failed to fetch assets (${response.status})`;
+          console.error(errorText);
+          throw new Error(errorText);
+        }
+        
+        const assets: Asset[] = await response.json(); // Assuming Asset type is defined
+
+        let relevantAssets = assets;
+        if (orgRole !== 'org:admin' && userId) {
+            relevantAssets = assets.filter(a => a.assignedToClerkUserId === userId);
+        }
+        
+        const active = relevantAssets.filter(a => a.status.toLowerCase() === 'active').length;
+        const inactive = relevantAssets.length - active;
+        
+        setAssetSummary({
+          totalAssets: relevantAssets.length,
+          activeAssets: active,
+          inactiveAssets: inactive,
+        });
+        setPieChartData([
+          { name: "Active", value: active },
+          { name: "Inactive", value: inactive },
+        ]);
+
+        // Fetch org members count
+        const memberships = await organization.getMemberships();
+        setTeamMembersCount(memberships.length);
+
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      }
+    };
+
+    fetchDashboardData();
+  }, [organization, userId, orgRole, orgLoaded, authLoaded]);
+
+  // ... rest of your component, using assetSummary and teamMembersCount
+  // Update the cards:
+  // { title: "Total Assets", value: assetSummary?.totalAssets || 0, ... }
+  // { title: "Total Employees", value: teamMembersCount || 0, ... } (This is members in current org)
+  // { title: "Active Assets", value: assetSummary?.activeAssets || 0, Icon: CheckCircle, ...}
+  // { title: "Inactive Assets", value: assetSummary?.inactiveAssets || 0, Icon: XCircle, ...}
+
+
+  if (!orgLoaded || !authLoaded) {
+    return <div className="text-center py-10">Loading dashboard...</div>;
+  }
+
+  if (!organization) {
+     return (
+        <div className="text-center py-10 bg-white rounded-xl p-6 border border-dashed border-gray-300">
+            <h2 className="text-lg font-semibold mb-2">Welcome to ExpenseScout!</h2>
+            <p className="text-gray-600 mb-4">Please select or create an organization to view your dashboard.</p>
+            <OrganizationSwitcher hidePersonal={true} />
+        </div>
+    );
+  }
+  
+  const totalAssetsForPie = (pieChartData[0]?.value || 0) + (pieChartData[1]?.value || 0);
+
+
+  return (
+    <div className="space-y-4 md:space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2">
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">
+                {orgRole === 'org:admin' ? `${organization.name} Admin Dashboard` : `${organization.name} Member View`}
+            </h1>
+            <OrganizationSwitcher hidePersonal={true}/>
+        </div>
+
+      {/* Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+        {[
+          { title: orgRole === 'org:admin' ? "Total Assets (Org)" : "My Assigned Assets", value: assetSummary?.totalAssets || 0, Icon: FileText, iconBg: "bg-green-100", iconColor: "text-green-600" },
+          { title: "Active Assets", value: assetSummary?.activeAssets || 0, Icon: Users /* TODO: Change Icon */, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
+          { title: "Inactive Assets", value: assetSummary?.inactiveAssets || 0, Icon: Briefcase /* TODO: Change Icon */, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+        ].map(card => (
+          // ... card rendering from your existing code, ensure 'value' is correctly sourced
+           <div key={card.title} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div className="flex justify-between items-start">
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">{card.title}</h4>
+                <div className="text-2xl font-semibold text-gray-900 mt-1">{card.value}</div>
+                {/* Add change logic if available */}
+              </div>
+              <div className={`p-2.5 rounded-full ${card.iconBg}`}>
+                <card.Icon size={18} className={card.iconColor} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+        {/* Pie Chart & Team Members sections from your existing DashboardComp, ensuring data is dynamic */}
+        {/* For pie chart in DashboardComp: */}
+        {/* <div className="text-2xl sm:text-3xl font-bold text-gray-800">{totalAssetsForPie}</div> */}
+
+    </div>
+  );
+};
+
+export default DashboardComp;
+
+// ````DashboardAssetAnalysis.tsx` can be similarly refactored to fetch assets based on the organization and display them. It could become the "All Assets in Org" view for an admin.
+
+// **Step 5: Protected Routes (`middleware.ts`)**
+
+// Your `middleware.ts` looks generally good for protecting routes.
+// The key will be using `orgId` and `orgRole` from `auth()` within your API routes and page components for fine-grained access control *within* an organization.
+
+// **Step 6: Navigation and UI**
+
+// *   Use Clerk's `<OrganizationSwitcher />` in your layout or a prominent place to allow users to switch between their organizations.
+// *   Your `Sidebar.tsx` already handles active states. Ensure links are correct.
+// *   The `Topbar.tsx` can display the current organization's name if desired, using `useOrganization()`.
+
+// **Running the Application:**
+
+// 1.  Ensure MongoDB is running and accessible.
+// 2.  `npm run dev` or `yarn dev`.
+// 3.  Sign up/in with Clerk. Create an organization through the Clerk UI or `<CreateOrganization />` component.
+// 4.  Test creating assets as an admin.
+// 5.  Test viewing assets as a member and admin.
+
+// This is a complex integration. Test each part thoroughly. Start with the Prisma schema, then API routes, then frontend. Good luck!
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: EmployeePageHeader.tsx ---
+"use client";
+import React, { useState } from "react";
+import { PlusCircle, Upload } from "lucide-react";
+import AddEmployeeModal from "./AddEmployeeModal"; // Updated import
+
+interface EmployeePageHeaderProps {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}
+
+const EmployeePageHeader: React.FC<EmployeePageHeaderProps> = ({ activeTab, setActiveTab }) => {
+  const tabs = ["All Employees", "Teams", "Roles"]; // Roles tab might lead to Roles page or show roles here
+  const [showModal, setShowModal] = useState(false);
+
+  return (
+    <div className="w-full px-4 md:px-6 lg:px-10"> {/* Adjusted padding */}
+      {showModal && <AddEmployeeModal onClose={() => setShowModal(false)} />}
+
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between pt-6 pb-4 space-y-3 md:space-y-0">
+        <div className="flex items-center space-x-3 md:space-x-4">
+          <h2 className="text-xl md:text-2xl font-semibold text-black">Employees</h2>
+          <div className="bg-gray-100 text-green-600 text-xs md:text-sm px-2 py-1 rounded-md font-medium">
+            100 {/* This should be dynamic */}
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
+          <button className="flex items-center justify-center px-4 py-2 border border-gray-300 text-black bg-white rounded-md text-sm font-medium hover:bg-gray-50 w-full sm:w-auto">
+            <Upload size={16} className="mr-2" />
+            Export
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center justify-center px-4 py-2 bg-[#34BC68] text-white rounded-md text-sm font-medium hover:bg-green-700 w-full sm:w-auto"
+          >
+            <PlusCircle size={16} className="mr-2" />
+            New Employee
+          </button>
+        </div>
+      </div>
+
+      <div className="flex space-x-4 md:space-x-6 pt-2 border-b border-gray-200 overflow-x-auto">
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`text-sm font-medium pb-2.5 whitespace-nowrap ${
+              activeTab === tab
+                ? "text-[#34BC68] border-b-2 border-[#34BC68]"
+                : "text-gray-600 hover:text-black"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default EmployeePageHeader;
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: EmployeeTable.tsx ---
+"use client";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Filter,
+  List,
+  LayoutGrid,
+  Search,
+  MoreVertical,
+  ArrowLeft,
+  ArrowRight,
+} from "lucide-react";
+import Image from "next/image";
+import userImg from "../../public/next.svg"; // Updated import
+
+interface User {
+  name: string;
+  email: string;
+  id: string;
+  role: string;
+  type: "Full time" | "Part time" | "Contractor";
+  status: "Active" | "Inactive" | "Invited";
+  team: string;
+  statusColor: "green" | "red" | "yellow";
+  avatar: string;
+}
+
+
+const EmployeeTable: React.FC = () => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 6; // Adjust as needed
+  const [activeMenuIndex, setActiveMenuIndex] = useState<number | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+
+  const users: User[] = [
+    { name: "Ali Jouro", email: "ali.jouro@example.com", id: "#12FC4V56979", role: "Product Manager", type: "Full time", status: "Active", team: "Marketing", statusColor: "green", avatar: userImg },
+    { name: "Sofia Lin", email: "sofia.lin@example.com", id: "#88FCV1234", role: "UX Designer", type: "Full time", status: "Active", team: "Design", statusColor: "green", avatar: userImg },
+    { name: "Liam Ben", email: "liam.ben@example.com", id: "#19KD8210", role: "Backend Developer", type: "Part time", status: "Inactive", team: "Engineering", statusColor: "red", avatar: userImg },
+    { name: "Emily Rose", email: "emily.rose@example.com", id: "#45AC2000", role: "HR Officer", type: "Full time", status: "Active", team: "HR", statusColor: "green", avatar: userImg },
+    { name: "James Wu", email: "james.wu@example.com", id: "#93VU1029", role: "Frontend Developer", type: "Contractor", status: "Invited", team: "Engineering", statusColor: "yellow", avatar: userImg },
+    { name: "Hana Yuki", email: "hana.yuki@example.com", id: "#54FR9210", role: "QA Engineer", type: "Full time", status: "Active", team: "Quality", statusColor: "green", avatar: userImg },
+    { name: "Marcus Li", email: "marcus.li@example.com", id: "#29FE9183", role: "Accountant", type: "Full time", status: "Inactive", team: "Finance", statusColor: "red", avatar: userImg },
+    { name: "Rachel Zed", email: "rachel.zed@example.com", id: "#61XY8201", role: "Data Scientist", type: "Part time", status: "Active", team: "Data", statusColor: "green", avatar: userImg },
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setActiveMenuIndex(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleSelectItem = (id: string) => {
+    setSelectedItems(prev => 
+      prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedItems(currentData.map(item => item.id));
+    } else {
+      setSelectedItems([]);
+    }
+  };
+  
+  const filteredUsers = users.filter((user) =>
+    `${user.name} ${user.email} ${user.role} ${user.id} ${user.team}`
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
+  );
+  
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  
+  const currentData = filteredUsers.slice(
+    (currentPage - 1) * usersPerPage,
+    currentPage * usersPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      setActiveMenuIndex(null); 
+    }
+  };
+  
+  const getStatusStyles = (statusColor: "green" | "red" | "yellow") => {
+    switch (statusColor) {
+      case "green": return "bg-green-100 text-green-700";
+      case "red": return "bg-red-100 text-red-700";
+      case "yellow": return "bg-yellow-100 text-yellow-700";
+      default: return "bg-gray-100 text-gray-700";
+    }
+  };
+   const getStatusDotStyles = (statusColor: "green" | "red" | "yellow") => {
+    switch (statusColor) {
+      case "green": return "bg-green-500";
+      case "red": return "bg-red-500";
+      case "yellow": return "bg-yellow-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+
+  return (
+    <div className="px-4 md:px-6 lg:px-10 pt-3">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">
+        <div className="flex items-center w-full md:w-auto md:max-w-md bg-transparent py-1">
+          <Search className="text-gray-400 mr-2.5" size={18} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search employees by name, role, ID..."
+            className="text-sm outline-none placeholder-gray-500 bg-transparent w-full"
+          />
+        </div>
+        <div className="flex items-center space-x-2 mt-2 md:mt-0">
+          <button className="flex items-center text-sm px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+            <Filter size={15} className="mr-1.5" />
+            Filter
+          </button>
+          <button className="p-2 rounded-md bg-gray-100 hover:bg-gray-200">
+            <List size={18} className="text-gray-700" />
+          </button>
+          <button className="p-2 rounded-md bg-white border border-gray-300 hover:bg-gray-50">
+            <LayoutGrid size={18} className="text-gray-700" />
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-sm">
+        <table className="w-full text-left text-sm min-w-[800px]"> {/* Increased min-width */}
+          <thead className="bg-gray-50 text-gray-600">
+            <tr>
+              <th className="px-4 py-3 w-12">
+                 <input 
+                  type="checkbox" 
+                  className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  onChange={handleSelectAll}
+                  checked={selectedItems.length === currentData.length && currentData.length > 0}
+                />
+              </th>
+              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Employee ID</th>
+              <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Teams</th>
+              <th className="px-4 py-3 w-12"></th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-700">
+            {currentData.map((user, index) => (
+              <tr key={user.id} className="border-t border-gray-200 hover:bg-gray-50">
+                <td className="px-4 py-3">
+                   <input 
+                    type="checkbox" 
+                    className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                    checked={selectedItems.includes(user.id)}
+                    onChange={() => handleSelectItem(user.id)}
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative w-9 h-9 sm:w-10 sm:h-10">
+                      <Image
+                        src={user.avatar}
+                        alt={user.name}
+                        width={40}
+                        height={40}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                      {user.status === "Active" && (
+                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">{user.name}</div>
+                      <div className="text-gray-500 text-xs">{user.email}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-medium text-gray-700">{user.id}</span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="font-medium text-gray-800">{user.role}</div>
+                  <div className="text-xs text-gray-500">{user.type}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full font-medium ${getStatusStyles(user.statusColor)}`}>
+                    <span className={`w-2 h-2 rounded-full mr-1.5 ${getStatusDotStyles(user.statusColor)}`} />
+                    {user.status}
+                  </div>
+                </td>
+                <td className="px-4 py-3 font-medium">
+                  <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-medium text-gray-700">{user.team}</span>
+                </td>
+                <td className="px-4 py-3 text-right relative">
+                  <button 
+                    onClick={() => setActiveMenuIndex(index === activeMenuIndex ? null : index)}
+                    className="text-gray-500 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100"
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+                  {activeMenuIndex === index && (
+                    <div
+                      ref={dropdownRef}
+                      className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg text-xs z-10 py-1"
+                    >
+                      <a href="#" className="block px-3 py-1.5 hover:bg-gray-100 text-gray-700">View Details</a>
+                      <a href="#" className="block px-3 py-1.5 hover:bg-gray-100 text-gray-700">Edit Employee</a>
+                      <a href="#" className="block px-3 py-1.5 hover:bg-gray-100 text-red-600">Deactivate</a>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {currentData.length === 0 && (
+              <tr>
+                <td colSpan={7} className="text-center py-10 text-gray-500">
+                  No employees found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 text-xs text-gray-600">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            className="flex items-center px-2.5 py-1.5 border border-gray-300 bg-white rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={currentPage === 1}
+          >
+            <ArrowLeft size={14} className="mr-1" />
+            Previous
+          </button>
+           <div className="flex items-center space-x-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNumber => (
+                <button
+                key={pageNumber}
+                onClick={() => handlePageChange(pageNumber)}
+                className={`px-2.5 py-1 rounded-md font-medium ${
+                    currentPage === pageNumber ? "bg-green-100 text-green-700" : "text-gray-600 hover:bg-gray-100"
+                }`}
+                >
+                {pageNumber}
+                </button>
+            ))}
+          </div>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            className="flex items-center px-2.5 py-1.5 border border-gray-300 bg-white rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={currentPage === totalPages}
+          >
+            Next
+            <ArrowRight size={14} className="ml-1" />
+          </button>
+        </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default EmployeeTable;
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: Sidebar.tsx ---
+"use client";
+
+import React, { useEffect, useRef } from "react";
+import Link from "next/link";
+import {
+  LayoutDashboard,
+  CreditCard,
+  DollarSign,
+  Briefcase,
+  ShieldCheck,
+  Users,
+  BarChart2,
+  Settings,
+  LogOut,
+  X // For mobile close button
+} from "lucide-react";
+import { SignedOut, SignOutButton } from "@clerk/nextjs"; // For logout
+
+interface NavItem {
+  label: string;
+  icon: JSX.Element;
+  href: string;
+}
+
+const navItems: NavItem[] = [
+  { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/dashboard" },
+  { label: "Expense", icon: <CreditCard size={20} />, href: "/expense" },
+  { label: "Income", icon: <DollarSign size={20} />, href: "/income" },
+  { label: "Assets", icon: <Briefcase size={20} />, href: "/assets" },
+  { label: "Roles", icon: <ShieldCheck size={20} />, href: "/roles" },
+  { label: "Employees", icon: <Users size={20} />, href: "/employees" },
+  { label: "Reports", icon: <BarChart2 size={20} />, href: "/reports" },
+  { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
+];
+
+interface SidebarProps {
+  active: string;
+  onItemClick: (label: string) => void; // Kept for potential direct state changes if needed, but Link handles nav
+  isMobileSidebarOpen: boolean;
+  setIsMobileSidebarOpen: (isOpen: boolean) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({
+  active,
+  onItemClick,
+  isMobileSidebarOpen,
+  setIsMobileSidebarOpen,
+}) => {
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        isMobileSidebarOpen &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(event.target as Node)
+      ) {
+        // Only close if click is outside, Topbar's menu button handles opening
+        // This effect is mainly for the overlay click on mobile
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isMobileSidebarOpen, setIsMobileSidebarOpen]);
+
+  return (
+    <div ref={sidebarRef} className="h-full bg-white flex flex-col justify-between border-r border-gray-200 md:border-none">
+      {/* Top Title & Mobile Close Button */}
+      <div className="pt-8 md:pt-10 pb-8 md:pb-12 pl-6 md:pl-12 pr-4 flex justify-between items-center">
+        <Link href="/dashboard" passHref>
+          <h1 className="text-xl font-bold cursor-pointer">
+            <span className="text-[#34bc68]">Expense</span>
+            <span className="text-black">Scout</span>
+          </h1>
+        </Link>
+        <button
+          className="md:hidden text-gray-600 hover:text-black"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        >
+          <X size={24} />
+        </button>
+      </div>
+
+      {/* Navigation Items */}
+      <ul className="flex-1 space-y-1 pl-4 md:pl-8 pr-2">
+        {navItems.map((item) => (
+          <li key={item.label}>
+            <Link
+              href={item.href}
+              passHref
+              className={`flex items-center px-3 py-2.5 cursor-pointer relative group rounded-lg md:rounded-tr-2xl md:rounded-br-2xl md:rounded-l-none
+                ${
+                  active === item.label
+                    ? "bg-[#34bc68] text-white" // Active style consistent
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                }`}
+              onClick={() => {
+                onItemClick(item.label); // For potential state updates
+                if (isMobileSidebarOpen) setIsMobileSidebarOpen(false); // Close mobile sidebar on nav
+              }}
+            >
+              <span className="mr-3">{item.icon}</span>
+              <span className="text-sm font-medium">{item.label}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      {/* Logout */}
+      <div className="py-6 pl-6 md:pl-10">
+        <SignOutButton>
+          <button className="flex items-center text-gray-700 hover:text-gray-900 cursor-pointer w-full px-3 py-2.5 rounded-lg hover:bg-gray-100">
+            <LogOut size={20} className="mr-3" />
+            <span className="text-sm font-medium">Logout</span>
+          </button>
+        </SignOutButton>
+      </div>
+    </div>
+  );
+};
+
+export default Sidebar;
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/tracker ===
+--- File: Topbar.tsx ---
+"use client";
+import React from "react";
+import { Bell, Settings, Search, Menu } from "lucide-react";
+import { UserButton, useUser } from "@clerk/nextjs";
+
+interface TopbarProps {
+  setIsMobileSidebarOpen: (isOpen: boolean) => void;
+}
+
+const Topbar: React.FC<TopbarProps> = ({ setIsMobileSidebarOpen }) => {
+  const { user } = useUser();
+
+  return (
+    <div className="w-full bg-white sticky top-0 z-30"> {/* z-30 to be above content but below modals */}
+      <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4">
+        {/* Mobile Hamburger */}
+        <div className="md:hidden">
+          <Menu
+            size={24}
+            className="text-black cursor-pointer"
+            onClick={() => setIsMobileSidebarOpen(true)}
+          />
+        </div>
+
+        {/* Search input (hidden on mobile) */}
+        <div className="hidden md:flex items-center bg-gray-50 px-3 py-2 rounded-md w-full max-w-md lg:max-w-lg">
+          <Search className="text-gray-400 mr-2" size={18} />
+          <input
+            type="text"
+            placeholder="Search anything here..."
+            className="bg-transparent outline-none text-sm w-full text-gray-700 placeholder-gray-500"
+          />
+        </div>
+
+        {/* Spacer to push icons to right if search is not taking full width or on mobile */}
+        <div className="flex-1 md:hidden"></div>
+
+
+        {/* Icons section */}
+        <div className="flex items-center space-x-4 md:space-x-6">
+          <button className="text-gray-500 hover:text-gray-700">
+            <Settings size={20} />
+          </button>
+          <button className="relative text-gray-500 hover:text-gray-700">
+            <Bell size={20} />
+            {/* Optional: Notification dot */}
+            {/* <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" /> */}
+          </button>
+
+          {/* Clerk User Button */}
+          <UserButton afterSignOutUrl="/sign-in" />
+        </div>
+      </div>
+      {/* Bottom border line */}
+      <div className="h-[1px] bg-gray-200 w-full"></div>
+    </div>
+  );
+};
+
+export default Topbar;
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/ui ===
+--- File: button.tsx ---
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+        outline:
+          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-md px-8",
+        icon: "h-9 w-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Button.displayName = "Button"
+
+export { Button, buttonVariants }
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/components/ui ===
+--- File: dropdown-menu.tsx ---
+"use client"
+
+import * as React from "react"
+import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  DotFilledIcon,
+} from "@radix-ui/react-icons"
+
+import { cn } from "@/lib/utils"
+
+const DropdownMenu = DropdownMenuPrimitive.Root
+
+const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
+
+const DropdownMenuGroup = DropdownMenuPrimitive.Group
+
+const DropdownMenuPortal = DropdownMenuPrimitive.Portal
+
+const DropdownMenuSub = DropdownMenuPrimitive.Sub
+
+const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup
+
+const DropdownMenuSubTrigger = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.SubTrigger>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubTrigger> & {
+    inset?: boolean
+  }
+>(({ className, inset, children, ...props }, ref) => (
+  <DropdownMenuPrimitive.SubTrigger
+    ref={ref}
+    className={cn(
+      "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none focus:bg-accent data-[state=open]:bg-accent",
+      inset && "pl-8",
+      className
+    )}
+    {...props}
+  >
+    {children}
+    <ChevronRightIcon className="ml-auto h-4 w-4" />
+  </DropdownMenuPrimitive.SubTrigger>
+))
+DropdownMenuSubTrigger.displayName =
+  DropdownMenuPrimitive.SubTrigger.displayName
+
+const DropdownMenuSubContent = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.SubContent>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.SubContent>
+>(({ className, ...props }, ref) => (
+  <DropdownMenuPrimitive.SubContent
+    ref={ref}
+    className={cn(
+      "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+      className
+    )}
+    {...props}
+  />
+))
+DropdownMenuSubContent.displayName =
+  DropdownMenuPrimitive.SubContent.displayName
+
+const DropdownMenuContent = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
+>(({ className, sideOffset = 4, ...props }, ref) => (
+  <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Content
+      ref={ref}
+      sideOffset={sideOffset}
+      className={cn(
+        "z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        className
+      )}
+      {...props}
+    />
+  </DropdownMenuPrimitive.Portal>
+))
+DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
+
+const DropdownMenuItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
+    inset?: boolean
+  }
+>(({ className, inset, ...props }, ref) => (
+  <DropdownMenuPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      inset && "pl-8",
+      className
+    )}
+    {...props}
+  />
+))
+DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName
+
+const DropdownMenuCheckboxItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.CheckboxItem>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>
+>(({ className, children, checked, ...props }, ref) => (
+  <DropdownMenuPrimitive.CheckboxItem
+    ref={ref}
+    className={cn(
+      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className
+    )}
+    checked={checked}
+    {...props}
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <DropdownMenuPrimitive.ItemIndicator>
+        <CheckIcon className="h-4 w-4" />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </span>
+    {children}
+  </DropdownMenuPrimitive.CheckboxItem>
+))
+DropdownMenuCheckboxItem.displayName =
+  DropdownMenuPrimitive.CheckboxItem.displayName
+
+const DropdownMenuRadioItem = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.RadioItem>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>
+>(({ className, children, ...props }, ref) => (
+  <DropdownMenuPrimitive.RadioItem
+    ref={ref}
+    className={cn(
+      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className
+    )}
+    {...props}
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <DropdownMenuPrimitive.ItemIndicator>
+        <DotFilledIcon className="h-4 w-4 fill-current" />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </span>
+    {children}
+  </DropdownMenuPrimitive.RadioItem>
+))
+DropdownMenuRadioItem.displayName = DropdownMenuPrimitive.RadioItem.displayName
+
+const DropdownMenuLabel = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Label>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Label> & {
+    inset?: boolean
+  }
+>(({ className, inset, ...props }, ref) => (
+  <DropdownMenuPrimitive.Label
+    ref={ref}
+    className={cn(
+      "px-2 py-1.5 text-sm font-semibold",
+      inset && "pl-8",
+      className
+    )}
+    {...props}
+  />
+))
+DropdownMenuLabel.displayName = DropdownMenuPrimitive.Label.displayName
+
+const DropdownMenuSeparator = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Separator>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>
+>(({ className, ...props }, ref) => (
+  <DropdownMenuPrimitive.Separator
+    ref={ref}
+    className={cn("-mx-1 my-1 h-px bg-muted", className)}
+    {...props}
+  />
+))
+DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName
+
+const DropdownMenuShortcut = ({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLSpanElement>) => {
+  return (
+    <span
+      className={cn("ml-auto text-xs tracking-widest opacity-60", className)}
+      {...props}
+    />
+  )
+}
+DropdownMenuShortcut.displayName = "DropdownMenuShortcut"
+
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuGroup,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuRadioGroup,
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks ===
+--- File: components.json ---
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "tailwind.config.ts",
+    "css": "app/globals.css",
+    "baseColor": "gray",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils"
+  }
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/hooks ===
+--- File: use-mounted.tsx ---
+'use client'
+
+import { useEffect, useState } from 'react'
+
+export default function useMounted() {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  return mounted
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/lib ===
+--- File: prisma.ts ---
+import { PrismaClient } from '@prisma/client'
+
+declare global {
+  var prisma: PrismaClient | undefined
+}
+
+const prisma = global.prisma || new PrismaClient()
+
+if (process.env.NODE_ENV === 'development') global.prisma = prisma
+
+export default prisma
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/lib ===
+--- File: users.ts ---
+// lib/users.ts
+import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client'; // Import Prisma
+
+// Define a type for the data expected by createUser, matching the relevant fields of your Prisma User model
+type CreateUserArgs = Omit<Prisma.UserCreateInput, 'id' | 'createdAt' | 'updatedAt' | 'assetsAssigned'>;
+
+export async function createUser(data: CreateUserArgs) {
+  try {
+    const user = await prisma.user.create({ data });
+    return { user };
+  } catch (error) {
+    // It's good to log the actual error for debugging
+    console.error("Error creating user in DB:", error);
+    // Provide a more specific error message or object if needed
+    return { error: error instanceof Error ? error.message : "Unknown error creating user" };
+  }
+}
+
+export async function getUserById({
+  id,
+  clerkUserId
+}: {
+  id?: string;
+  clerkUserId?: string;
+}) {
+  try {
+    if (!id && !clerkUserId) {
+      throw new Error('id or clerkUserId is required');
+    }
+
+    const query = id ? { id } : { clerkUserId };
+
+    const user = await prisma.user.findUnique({ where: query });
+    return { user };
+  } catch (error) {
+    return { error };
+  }
+}
+
+// UpdateUser remains the same for now
+export async function UpdateUser(id: string, data: Partial<Prisma.UserUpdateInput>) { // Use Prisma.UserUpdateInput
+  try {
+    const user = await prisma.user.update({
+      where: { id },
+      data
+    });
+    return { user };
+  } catch (error) {
+    return { error };
+  }
+}
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks/lib ===
+--- File: utils.ts ---
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks ===
+--- File: middleware.ts ---
+// /c/Users/hp/desktop/clerk-webhooks/middleware.ts
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+
+const isProtectedRoute = createRouteMatcher([
+  '/protected(.*)',
+  '/dashboard(.*)', // Protect dashboard
+  '/employees(.*)', // Protect employees
+  '/assets(.*)',    // Protect assets
+  '/roles(.*)',     // Protect roles
+  '/reports(.*)',   // Protect reports
+  '/settings(.*)',  // Protect settings
+  '/api/me(.*)',    // Protect API routes
+  '/api/assets(.*)'  // Protect assets API routes
+]);
+
+// Make the Clerk webhooks route public
+const isPublicRoute = createRouteMatcher([
+  '/',
+  '/sign-in(.*)',
+  '/sign-up(.*)',
+  '/api/webhooks/clerk(.*)' // Ensure webhook is public
+]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (isPublicRoute(req)) {
+    return; // Do not protect public routes
+  }
+  if (isProtectedRoute(req)) {
+    await auth.protect();
+    return;
+  }
+});
+
+export const config = {
+  matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'],
+};
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks ===
+--- File: next-env.d.ts ---
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks ===
+--- File: package.json ---
+{
+  "name": "next-shadcn",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@clerk/clerk-sdk-node": "^4.13.23",
+    "@clerk/nextjs": "^6.20.2",
+    "@prisma/client": "^6.8.2",
+    "@radix-ui/react-dropdown-menu": "^2.0.6",
+    "@radix-ui/react-icons": "^1.3.0",
+    "@radix-ui/react-slot": "^1.0.2",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.511.0",
+    "next": "15.3.3",
+    "next-themes": "^0.4.6",
+    "prisma": "^6.8.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "recharts": "^2.15.3",
+    "svix": "^1.66.0",
+    "tailwind-merge": "^2.3.0",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "autoprefixer": "^10.4.19",
+    "eslint": "^9.28.0",
+    "eslint-config-next": "15.3.3",
+    "postcss": "^8.4.38",
+    "prettier": "^3.2.5",
+    "prettier-plugin-tailwindcss": "^0.5.14",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.4.5"
+  }
+}
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks ===
+--- File: postcss.config.js ---
+module.exports = {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks ===
+--- File: tailwind.config.ts ---
+import type { Config } from "tailwindcss"
+
+const config = {
+  darkMode: ["class"],
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
+	],
+  prefix: "",
+  theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [require("tailwindcss-animate")],
+} satisfies Config
+
+export default config
+
+=== Folder: /c/Users/hp/desktop/clerk-webhooks ===
+--- File: tsconfig.json ---
+{
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "target": "ES2017"
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+
+
