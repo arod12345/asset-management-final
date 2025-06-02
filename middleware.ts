@@ -1,36 +1,47 @@
 // /c/Users/hp/desktop/clerk-webhooks/middleware.ts
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-const isProtectedRoute = createRouteMatcher([
-  '/protected(.*)',
-  '/dashboard(.*)', // Protect dashboard
-  '/employees(.*)', // Protect employees
-  '/assets(.*)',    // Protect assets
-  '/roles(.*)',     // Protect roles
-  '/reports(.*)',   // Protect reports
-  '/settings(.*)',  // Protect settings
-  '/api/me(.*)',    // Protect API routes
-  '/api/assets(.*)'  // Protect assets API routes
+const isAppRoute = createRouteMatcher([
+  // Routes that require authentication
+  '/dashboard(.*)',
+  '/employees(.*)',
+  '/assets(.*)',
+  '/roles(.*)',
+  '/reports(.*)',
+  '/settings(.*)',
+  '/api/(.*)', // Protect all API routes (webhooks are already excluded by isPublicRoute)
 ]);
 
-// Make the Clerk webhooks route public
+// Public routes: landing page, sign-in/up, Clerk webhooks
 const isPublicRoute = createRouteMatcher([
-  '/',
+  '/', // Landing page
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/api/webhooks/clerk(.*)' // Ensure webhook is public
+  '/api/webhooks/clerk(.*)', // Clerk webhooks
+  // Add other public static pages if any, e.g., /pricing, /about
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
+export default clerkMiddleware((auth, req) => {
   if (isPublicRoute(req)) {
-    return; // Do not protect public routes
-  }
-  if (isProtectedRoute(req)) {
-    await auth.protect();
+    // Allow access to public routes
     return;
   }
+
+  if (isAppRoute(req)) {
+    // Protect app routes
+    auth.protect();
+  }
+  // If it's not explicitly public or an app route, 
+  // by default Clerk will protect it if no other rule matches.
+  // Or, you can decide to make unmatched routes public or redirect.
+  // For now, we assume any route not listed as public and not an app route should be protected.
+  // If you have other specific public pages (e.g. /pricing, /about), add them to isPublicRoute.
 });
 
 export const config = {
-  matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'],
+  matcher: [
+    '/((?!.*\\..*|_next).*)', // Matches all routes except static files and _next internal routes
+    '/',                      // Ensure the root route is matched
+    '/(api|trpc)(.*)',        // Matches all API routes
+  ],
 };

@@ -4,7 +4,8 @@ const nextConfig = {
     domains: [
       'img.clerk.com',
       'images.clerk.dev',
-      'clerk.com'
+      'clerk.com',
+      'res.cloudinary.com', // Added Cloudinary hostname
     ],
   },
 };

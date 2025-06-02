@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Bell, Settings, Search, Menu } from "lucide-react";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { UserButton, useUser, OrganizationSwitcher } from "@clerk/nextjs";
 
 interface TopbarProps {
   setIsMobileSidebarOpen: (isOpen: boolean) => void;
@@ -35,7 +35,6 @@ const Topbar: React.FC<TopbarProps> = ({ setIsMobileSidebarOpen }) => {
         {/* Spacer to push icons to right if search is not taking full width or on mobile */}
         <div className="flex-1 md:hidden"></div>
 
-
         {/* Icons section */}
         <div className="flex items-center space-x-4 md:space-x-6">
           <button className="text-gray-500 hover:text-gray-700">
@@ -46,6 +45,19 @@ const Topbar: React.FC<TopbarProps> = ({ setIsMobileSidebarOpen }) => {
             {/* Optional: Notification dot */}
             {/* <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" /> */}
           </button>
+
+          {/* Clerk Organization Switcher */}
+          <OrganizationSwitcher 
+            afterCreateOrganizationUrl="/dashboard" 
+            afterLeaveOrganizationUrl="/sign-in"
+            afterSelectOrganizationUrl={(org) => `/dashboard?orgId=${org.id}`}
+            appearance={{
+              elements: {
+                organizationPreviewTextContainer: "text-sm",
+                organizationSwitcherTrigger: "text-sm p-2 border border-gray-300 rounded-md hover:bg-gray-50",
+              }
+            }}
+          />
 
           {/* Clerk User Button */}
           <UserButton afterSignOutUrl="/sign-in" />

@@ -1,8 +1,10 @@
-// app/api/assets/[assetId]/route.ts
 import { NextResponse } from 'next/server';
-import { auth, clerkClient } from '@clerk/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
+import clerkNodeSDK from '@clerk/clerk-sdk-node';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client'; // For Prisma.PrismaClientKnownRequestError
 import { getUserById } from '@/lib/users';
+import { uploadToCloudinary, deleteFromCloudinary, getPublicIdFromUrl } from '@/lib/cloudinary';
 
 interface Params {
   params: { assetId: string };
@@ -10,7 +12,7 @@ interface Params {
 
 export async function GET(req: Request, { params }: Params) {
   try {
-    const { userId, orgId, orgRole } = auth();
+    const { userId, orgId, orgRole } = await auth(); // Correct destructuring and await auth()
     const { assetId } = params;
 
     if (!userId) return new NextResponse('Unauthorized', { status: 401 });
@@ -18,13 +20,12 @@ export async function GET(req: Request, { params }: Params) {
     if (!assetId) return new NextResponse('Asset ID missing', { status: 400 });
 
     const asset = await prisma.asset.findUnique({
-      where: { id: assetId, clerkOrganizationId: orgId }, // Ensure asset belongs to the current org
+      where: { id: assetId, clerkOrganizationId: orgId },
       include: { assignedTo: { select: { firstName: true, lastName: true, email: true, imageUrl: true, clerkUserId: true }} },
     });
 
     if (!asset) return new NextResponse('Asset not found or not part of this organization', { status: 404 });
 
-    // Admins can see any asset in their org. Members can only see if assigned to them.
     if (orgRole !== 'org:admin' && asset.assignedToClerkUserId !== userId) {
       return new NextResponse('Forbidden: You do not have access to this asset', { status: 403 });
     }
@@ -38,12 +39,13 @@ export async function GET(req: Request, { params }: Params) {
 
 export async function PUT(req: Request, { params }: Params) {
   try {
-    const { userId, orgId, orgRole } = auth();
+    const { userId, orgId, orgRole } = await auth(); // Correct destructuring and await auth()
     const { assetId } = params;
     const body = await req.json();
     const {
-      title, model, serialNumber, imageUrl, description, status,
-      latitude, longitude, assignedToClerkUserId,
+      title, model, serialNumber, imageBase64, // Expect base64 for image update
+      description, status,
+      latitude, longitude, assignedToClerkUserId, removeImage, // Flag to remove image
     } = body;
 
     if (!userId) return new NextResponse('Unauthorized', { status: 401 });
@@ -56,29 +58,62 @@ export async function PUT(req: Request, { params }: Params) {
 
     if (!assetToUpdate) return new NextResponse('Asset not found or not part of this organization', { status: 404 });
 
-    // Admins can update any asset. Members can only update assets assigned to them (potentially limited fields).
-    // For simplicity here, only admins can update. You can expand this.
     if (orgRole !== 'org:admin') {
-      // Example: allow member to update status or location if assigned
-      // if (assetToUpdate.assignedToClerkUserId !== userId || (title || model || serialNumber /* etc if not allowed to change*/)) {
-      //   return new NextResponse('Forbidden: Insufficient permissions to update this asset or these fields', { status: 403 });
-      // }
        return new NextResponse('Forbidden: Insufficient role to update', { status: 403 });
     }
     
-    let assignedToDbUserId: string | null | undefined = undefined; // undefined means don't change, null means unassign
-    if (assignedToClerkUserId === null) { // Explicitly unassigning
+    let assignedToDbUserId: string | null | undefined = undefined; 
+    if (assignedToClerkUserId === null) { 
         assignedToDbUserId = null;
-    } else if (assignedToClerkUserId) { // Assigning or changing assignment
+    } else if (assignedToClerkUserId) { 
       const { user: assignee } = await getUserById({ clerkUserId: assignedToClerkUserId });
       if (!assignee) {
         return new NextResponse(`Assignee user with Clerk ID ${assignedToClerkUserId} not found in local DB`, { status: 404 });
       }
-      const memberships = await clerkClient.users.getOrganizationMembershipList({ userId: assignedToClerkUserId });
-      if (!memberships.some(mem => mem.organization.id === orgId)) {
-        return new NextResponse('Assignee is not a member of this organization.', { status: 400 });
+      if (orgId && assignedToClerkUserId) { 
+        const memberships = await clerkNodeSDK.users.getOrganizationMembershipList({ userId: assignedToClerkUserId });
+        if (!memberships.some(mem => mem.organization.id === orgId)) {
+          return new NextResponse('Assignee is not a member of this organization.', { status: 400 });
+        }
       }
       assignedToDbUserId = assignee.id;
+    }
+
+    let newImageUrl: string | null | undefined = undefined; // undefined means no change, null means remove
+
+    if (removeImage) {
+        if (assetToUpdate.imageUrl) {
+            const publicId = getPublicIdFromUrl(assetToUpdate.imageUrl);
+            if (publicId) {
+                try {
+                    await deleteFromCloudinary(publicId);
+                } catch (deleteError) {
+                    console.error("Cloudinary: Error deleting old image", deleteError);
+                    // Decide if this should be a hard fail or just a warning
+                }
+            }
+        }
+        newImageUrl = null; // Set to null to remove from DB
+    } else if (imageBase64) { // If new image is provided
+        // Delete old image if it exists
+        if (assetToUpdate.imageUrl) {
+            const publicId = getPublicIdFromUrl(assetToUpdate.imageUrl);
+             if (publicId) {
+                try {
+                    await deleteFromCloudinary(publicId);
+                } catch (deleteError) {
+                    console.error("Cloudinary: Error deleting old image before new upload", deleteError);
+                }
+            }
+        }
+        // Upload new image
+        try {
+            const uploadResult = await uploadToCloudinary(imageBase64, 'assets');
+            newImageUrl = uploadResult.secure_url;
+        } catch (uploadError) {
+            console.error('Cloudinary upload failed during update:', uploadError);
+            return new NextResponse('Image upload failed', { status: 500 });
+        }
     }
 
 
@@ -88,12 +123,11 @@ export async function PUT(req: Request, { params }: Params) {
         ...(title && { title }),
         ...(model && { model }),
         ...(serialNumber && { serialNumber }),
-        imageUrl: imageUrl, // Can be set to null
+        ...(newImageUrl !== undefined && { imageUrl: newImageUrl }), // Update image URL if changed or removed
         ...(description && { description }),
         ...(status && { status }),
         latitude: latitude !== undefined ? parseFloat(latitude) : undefined,
         longitude: longitude !== undefined ? parseFloat(longitude) : undefined,
-        // Only update assignment if assignedToClerkUserId is provided in the payload
         ...(assignedToClerkUserId !== undefined && { 
             assignedToClerkUserId: assignedToClerkUserId,
             assignedToDbUserId: assignedToDbUserId,
@@ -113,7 +147,7 @@ export async function PUT(req: Request, { params }: Params) {
 
 export async function DELETE(req: Request, { params }: Params) {
   try {
-    const { userId, orgId, orgRole } = auth();
+    const { userId, orgId, orgRole } = await auth(); // Correct destructuring and await auth()
     const { assetId } = params;
 
     if (!userId) return new NextResponse('Unauthorized', { status: 401 });
@@ -128,6 +162,19 @@ export async function DELETE(req: Request, { params }: Params) {
 
     if (orgRole !== 'org:admin') {
       return new NextResponse('Forbidden: Insufficient role', { status: 403 });
+    }
+
+    // Delete image from Cloudinary if it exists
+    if (assetToDelete.imageUrl) {
+      const publicId = getPublicIdFromUrl(assetToDelete.imageUrl);
+      if (publicId) {
+        try {
+          await deleteFromCloudinary(publicId);
+        } catch (deleteError) {
+          console.error("Cloudinary: Error deleting image during asset deletion", deleteError);
+          // You might decide to log this but still proceed with DB deletion
+        }
+      }
     }
 
     await prisma.asset.delete({ where: { id: assetId } });

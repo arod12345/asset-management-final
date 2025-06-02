@@ -100,12 +100,22 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose, onAssetAdded }) 
     setIsLoading(true);
     setFormError(null);
 
-    // For image upload, you'd typically use FormData
-    // However, for simplicity in this example, if you store image URLs, 
-    // you'd first upload the image to a storage service (e.g., Cloudinary, S3, Next.js public folder if small scale)
-    // and get back a URL. Here, we'll assume imageUrl is directly provided or handled elsewhere.
-    // For now, we'll just pass the filename or a placeholder.
-    // A more robust solution involves multipart/form-data for image uploads.
+    let imageBase64: string | undefined = undefined;
+    if (assetImageFile) {
+      try {
+        imageBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(assetImageFile);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (error) => reject(error);
+        });
+      } catch (error) {
+        console.error("Error converting image to base64:", error);
+        setFormError("Failed to process image. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+    }
 
     const assetData = {
       title,
@@ -115,7 +125,7 @@ const AddAssetModal: React.FC<AddAssetModalProps> = ({ onClose, onAssetAdded }) 
       status,
       latitude: latitude ? parseFloat(latitude) : undefined,
       longitude: longitude ? parseFloat(longitude) : undefined,
-      // imageUrl: assetImagePreview, // Or the URL from your storage service
+      imageBase64, // Include the base64 string here
       assignedToClerkUserId: selectedAssigneeClerkId,
       clerkOrganizationId: organization.id, // This comes from useOrganization()
     };

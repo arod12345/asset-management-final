@@ -43,3 +43,15 @@ model Asset {
   @@index([clerkOrganizationId])
   @@index([assignedToClerkUserId])
 }
+
+model Organization {
+  id                String   @id @default(cuid())
+  clerkOrgId        String   @unique // Clerk's organization ID
+  name              String
+  slug              String?
+  imageUrl          String?
+  // other fields you want to sync
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  // members User[] @relation("OrganizationMembers") // If you have User.organizationId
+}

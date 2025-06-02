@@ -1,6 +1,7 @@
 // components/tracker/DashboardComp.tsx
 "use client";
 import React, { useEffect, useState } from "react";
+import { FileText, Users, Briefcase } from "lucide-react"; // Added import for icons
 // ... other imports
 import { useOrganization, useAuth, OrganizationSwitcher } from "@clerk/nextjs";
 
@@ -138,26 +139,3 @@ const DashboardComp: React.FC = () => {
 };
 
 export default DashboardComp;
-
-// ````DashboardAssetAnalysis.tsx` can be similarly refactored to fetch assets based on the organization and display them. It could become the "All Assets in Org" view for an admin.
-
-// **Step 5: Protected Routes (`middleware.ts`)**
-
-// Your `middleware.ts` looks generally good for protecting routes.
-// The key will be using `orgId` and `orgRole` from `auth()` within your API routes and page components for fine-grained access control *within* an organization.
-
-// **Step 6: Navigation and UI**
-
-// *   Use Clerk's `<OrganizationSwitcher />` in your layout or a prominent place to allow users to switch between their organizations.
-// *   Your `Sidebar.tsx` already handles active states. Ensure links are correct.
-// *   The `Topbar.tsx` can display the current organization's name if desired, using `useOrganization()`.
-
-// **Running the Application:**
-
-// 1.  Ensure MongoDB is running and accessible.
-// 2.  `npm run dev` or `yarn dev`.
-// 3.  Sign up/in with Clerk. Create an organization through the Clerk UI or `<CreateOrganization />` component.
-// 4.  Test creating assets as an admin.
-// 5.  Test viewing assets as a member and admin.
-
-// This is a complex integration. Test each part thoroughly. Start with the Prisma schema, then API routes, then frontend. Good luck!
