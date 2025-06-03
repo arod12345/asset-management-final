@@ -24,11 +24,11 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: <LayoutDashboard size={20} />, href: "/dashboard" },
-  { label: "Expense", icon: <CreditCard size={20} />, href: "/expense" },
-  { label: "Income", icon: <DollarSign size={20} />, href: "/income" },
+  // { label: "Expense", icon: <CreditCard size={20} />, href: "/expense" },
+  // { label: "Income", icon: <DollarSign size={20} />, href: "/income" },
   { label: "Assets", icon: <Briefcase size={20} />, href: "/assets" },
-  { label: "Roles", icon: <ShieldCheck size={20} />, href: "/roles" },
-  { label: "Employees", icon: <Users size={20} />, href: "/employees" },
+  // { label: "Roles", icon: <ShieldCheck size={20} />, href: "/roles" },
+  // { label: "Employees", icon: <Users size={20} />, href: "/employees" },
   { label: "Reports", icon: <BarChart2 size={20} />, href: "/reports" },
   { label: "Settings", icon: <Settings size={20} />, href: "/settings" },
 ];

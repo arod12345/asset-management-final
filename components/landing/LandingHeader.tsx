@@ -28,7 +28,7 @@ const LandingHeader = () => {
         {/* Action Button */}
         <div>
           <Button asChild className="bg-green-500 hover:bg-green-600 text-white">
-            <Link href="/dashboard">Get Started</Link>
+            <Link href="/assets">Get Started</Link>
           </Button>
         </div>
       </div>

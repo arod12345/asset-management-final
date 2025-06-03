@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import clerkNodeSDK from '@clerk/clerk-sdk-node';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client'; // For Prisma.PrismaClientKnownRequestError
 import { getUserById } from '@/lib/users';
@@ -71,7 +70,7 @@ export async function PUT(req: Request, { params }: Params) {
         return new NextResponse(`Assignee user with Clerk ID ${assignedToClerkUserId} not found in local DB`, { status: 404 });
       }
       if (orgId && assignedToClerkUserId) { 
-        const memberships = await clerkNodeSDK.users.getOrganizationMembershipList({ userId: assignedToClerkUserId });
+        const memberships = await clerkClient.users.getOrganizationMembershipList({ userId: assignedToClerkUserId });
         if (!memberships.some(mem => mem.organization.id === orgId)) {
           return new NextResponse('Assignee is not a member of this organization.', { status: 400 });
         }

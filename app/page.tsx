@@ -40,7 +40,7 @@ export default function LandingPage() {
 
       <main className="flex-grow">
         {/* Hero Section */}
-        <section id="hero" className="py-20 md:py-32 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-slate-900 dark:via-slate-800 dark:to-gray-900">
+        <section id="hero" className=" pt-20 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-slate-900 dark:via-slate-800 dark:to-gray-900">
           <div className="container mx-auto px-6 text-center">
             <div className="mb-3">
               <span className="inline-block bg-green-200 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
@@ -59,14 +59,14 @@ export default function LandingPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">No credit card required. Get started in minutes.</p>
             
             {/* Placeholder for the dashboard image */}
-            <div className="mt-16 max-w-4xl mx-auto">
+            <div className="mt-16">
               <Image 
-                src="/images/landing/dashboard-mockup.png" // IMPORTANT: Replace with actual path to your image
-                alt="Asset Scout Dashboard Mockup"
-                width={1200}
-                height={750}
+                src="/images/landing/Frame 2147223498.png" 
+                alt="Asset Scout Platform Overview"
+                width={1400}
+                height={2000} 
                 className="rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700"
-                priority // Load hero image quickly
+                priority 
               />
             </div>
           </div>
@@ -80,11 +80,7 @@ export default function LandingPage() {
             </h3>
             {/* Add logos here */}
             <div className="flex flex-wrap justify-center items-center gap-x-8 md:gap-x-12 gap-y-4">
-              <span className="text-gray-400 dark:text-gray-500 text-2xl font-medium">Logo1</span>
-              <span className="text-gray-400 dark:text-gray-500 text-2xl font-medium">Logo2</span>
-              <span className="text-gray-400 dark:text-gray-500 text-2xl font-medium">Logo3</span>
-              <span className="text-gray-400 dark:text-gray-500 text-2xl font-medium">Logo4</span>
-              <span className="text-gray-400 dark:text-gray-500 text-2xl font-medium">Logo5</span>
+             <Image src="/images/landing/Container.png" alt="Asset Scout Platform Overview" width={1000} height={450} className="rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700" priority />
             </div>
           </div>
         </section>
@@ -111,9 +107,16 @@ export default function LandingPage() {
               <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg">
                 <Users className="w-10 h-10 text-green-500 mb-4" />
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Role-Based Access</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
                   Ensure data security and control by assigning specific roles and permissions to your team members.
                 </p>
+                <Image
+                  src="/images/landing/Container.png"
+                  alt="Illustration of Role-Based Access Control"
+                  width={300} 
+                  height={200} 
+                  className="rounded-md mt-2 mx-auto"
+                />
               </div>
               {/* Feature 3: Every Asset Counted */}
               <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-lg">
@@ -135,10 +138,10 @@ export default function LandingPage() {
             {/* Placeholder for feature images/mockups from the landing page */}
             <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                 <div className="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
-                    <Image src="/images/landing/feature-dashboard.png" alt="Dashboard Feature" width={800} height={600} className="rounded-md" />
+                    <Image src="/images/landing/Roles.png" alt="Asset Scout Feature Example 1" width={800} height={600} className="rounded-md" />
                 </div>
                 <div className="p-4 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
-                    <Image src="/images/landing/feature-asset-list.png" alt="Asset List Feature" width={800} height={600} className="rounded-md" />
+                    <Image src="/images/landing/Frame 1707479693 (1).png" alt="Asset Scout Feature Example 2" width={800} height={600} className="rounded-md" />
                 </div>
             </div>
           </div>

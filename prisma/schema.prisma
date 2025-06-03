@@ -18,6 +18,7 @@ model User {
   updatedAt   DateTime @updatedAt
   
   assignedAssets Asset[] @relation("UserAssets")
+  notifications Notification[] @relation("UserNotifications")
 }
 
 model Asset {
@@ -34,7 +35,8 @@ model Asset {
   clerkOrganizationId String    // ID of the Clerk organization this asset belongs to
 
   assignedToClerkUserId String?   // Clerk User ID of the person this asset is assigned to
-  assignedTo          User?     @relation("UserAssets", fields: [assignedToDbUserId], references: [id])
+  assignedTo          User?     @relation("UserAssets", fields: [assignedToDbUserId], references: [id]) 
+  notifications       Notification[] @relation("AssetNotifications") 
   assignedToDbUserId  String?   @db.ObjectId // Foreign key for Prisma relation to User model
 
   createdAt           DateTime  @default(now())
@@ -45,7 +47,7 @@ model Asset {
 }
 
 model Organization {
-  id                String   @id @default(cuid())
+  id                String   @id @default(cuid()) @map("_id")
   clerkOrgId        String   @unique // Clerk's organization ID
   name              String
   slug              String?
@@ -54,4 +56,25 @@ model Organization {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   // members User[] @relation("OrganizationMembers") // If you have User.organizationId
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  recipientClerkUserId String  // Clerk User ID of the notification recipient
+  recipient            User    @relation("UserNotifications", fields: [recipientDbUserId], references: [id])
+  recipientDbUserId    String  @db.ObjectId
+
+  // Optional: Link to the specific asset if the notification is about an asset
+  assetId   String?  @db.ObjectId
+  asset     Asset?   @relation("AssetNotifications", fields: [assetId], references: [id])
+
+  type      String?  // e.g., "asset_assignment", "status_update"
+
+  @@index([recipientClerkUserId])
+  @@index([assetId])
 }

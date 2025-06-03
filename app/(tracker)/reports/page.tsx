@@ -9,6 +9,7 @@ type ReportType = "all_assets" | "asset_assignments" | "asset_status_summary"; /
 interface ReportParams {
   format: ReportFormat;
   type: ReportType;
+  orgId: string; // Added orgId
   // Add other params like date ranges, status filters etc.
   dateFrom?: string;
   dateTo?: string;
@@ -43,10 +44,13 @@ export default function ReportsPage() {
     const reportParams: ReportParams = {
       format: reportFormat,
       type: reportType,
+      orgId: organization.id, // Explicitly send organization.id
       dateFrom: dateFrom || undefined, // Send undefined if empty
       dateTo: dateTo || undefined,   // Send undefined if empty
       // ...other params
     };
+
+    console.log('[ReportsPage] Sending reportParams:', reportParams); // Added log
 
     try {
       const response = await fetch('/api/reports/generate', {
@@ -166,7 +170,7 @@ export default function ReportsPage() {
         {!organization && <p className="text-xs text-yellow-600 mt-2">Please ensure an organization is active to generate reports.</p>}
       </div>
 
-       <div className="bg-white dark:bg-gray-800 border rounded-2xl p-6 mt-6">
+       {/* <div className="bg-white dark:bg-gray-800 border rounded-2xl p-6 mt-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">About Report Generation</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
                 This section uses an API to generate reports in your chosen format.
@@ -192,7 +196,7 @@ export default function ReportsPage() {
                 You would need to build out the <code className="text-xs bg-gray-200 dark:bg-gray-700 p-1 rounded">/api/reports/generate</code> endpoint
                 with your chosen data fetching and document generation logic.
             </p>
-        </div>
+        </div> */}
 
     </div>
   );

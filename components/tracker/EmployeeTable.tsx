@@ -8,42 +8,58 @@ import {
   MoreVertical,
   ArrowLeft,
   ArrowRight,
+  Loader2, 
+  AlertTriangle, 
 } from "lucide-react";
 import Image from "next/image";
-import userImg from "../../public/next.svg"; // Updated import
 
-interface User {
-  name: string;
-  email: string;
+interface ClerkUser {
   id: string;
-  role: string;
-  type: "Full time" | "Part time" | "Contractor";
-  status: "Active" | "Inactive" | "Invited";
-  team: string;
-  statusColor: "green" | "red" | "yellow";
-  avatar: string;
+  firstName: string | null;
+  lastName: string | null;
+  primaryEmail: string | undefined;
+  imageUrl: string;
+  lastSignInAt: string | null; 
+  createdAt: string | null;  
 }
 
-
 const EmployeeTable: React.FC = () => {
+  const [fetchedUsers, setFetchedUsers] = useState<ClerkUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 6; // Adjust as needed
+  const usersPerPage = 6;
   const [activeMenuIndex, setActiveMenuIndex] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/clerk-users');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Error: ${response.status}`);
+        }
+        const data: ClerkUser[] = await response.json();
+        setFetchedUsers(data);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError('An unknown error occurred');
+        }
+        console.error("Failed to fetch users:", err);
+      }
+      setIsLoading(false);
+    };
 
-  const users: User[] = [
-    { name: "Ali Jouro", email: "ali.jouro@example.com", id: "#12FC4V56979", role: "Product Manager", type: "Full time", status: "Active", team: "Marketing", statusColor: "green", avatar: userImg },
-    { name: "Sofia Lin", email: "sofia.lin@example.com", id: "#88FCV1234", role: "UX Designer", type: "Full time", status: "Active", team: "Design", statusColor: "green", avatar: userImg },
-    { name: "Liam Ben", email: "liam.ben@example.com", id: "#19KD8210", role: "Backend Developer", type: "Part time", status: "Inactive", team: "Engineering", statusColor: "red", avatar: userImg },
-    { name: "Emily Rose", email: "emily.rose@example.com", id: "#45AC2000", role: "HR Officer", type: "Full time", status: "Active", team: "HR", statusColor: "green", avatar: userImg },
-    { name: "James Wu", email: "james.wu@example.com", id: "#93VU1029", role: "Frontend Developer", type: "Contractor", status: "Invited", team: "Engineering", statusColor: "yellow", avatar: userImg },
-    { name: "Hana Yuki", email: "hana.yuki@example.com", id: "#54FR9210", role: "QA Engineer", type: "Full time", status: "Active", team: "Quality", statusColor: "green", avatar: userImg },
-    { name: "Marcus Li", email: "marcus.li@example.com", id: "#29FE9183", role: "Accountant", type: "Full time", status: "Inactive", team: "Finance", statusColor: "red", avatar: userImg },
-    { name: "Rachel Zed", email: "rachel.zed@example.com", id: "#61XY8201", role: "Data Scientist", type: "Part time", status: "Active", team: "Data", statusColor: "green", avatar: userImg },
-  ];
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -74,11 +90,14 @@ const EmployeeTable: React.FC = () => {
     }
   };
   
-  const filteredUsers = users.filter((user) =>
-    `${user.name} ${user.email} ${user.role} ${user.id} ${user.team}`
+  const filteredUsers = fetchedUsers.filter((user) => {
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    const email = user.primaryEmail || '';
+    const id = user.id || '';
+    return `${fullName} ${email} ${id}`
       .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
+      .includes(searchQuery.toLowerCase());
+  });
   
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
   
@@ -93,77 +112,65 @@ const EmployeeTable: React.FC = () => {
       setActiveMenuIndex(null); 
     }
   };
-  
-  const getStatusStyles = (statusColor: "green" | "red" | "yellow") => {
-    switch (statusColor) {
-      case "green": return "bg-green-100 text-green-700";
-      case "red": return "bg-red-100 text-red-700";
-      case "yellow": return "bg-yellow-100 text-yellow-700";
-      default: return "bg-gray-100 text-gray-700";
-    }
-  };
-   const getStatusDotStyles = (statusColor: "green" | "red" | "yellow") => {
-    switch (statusColor) {
-      case "green": return "bg-green-500";
-      case "red": return "bg-red-500";
-      case "yellow": return "bg-yellow-500";
-      default: return "bg-gray-500";
-    }
-  };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <p className="ml-2 text-gray-600">Loading employees...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col justify-center items-center h-64 bg-red-50 border border-red-200 rounded-md p-4">
+        <AlertTriangle className="h-8 w-8 text-red-500" />
+        <p className="mt-2 text-red-700 font-semibold">Error loading employees</p>
+        <p className="text-red-600 text-sm">{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="px-4 md:px-6 lg:px-10 pt-3">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">
-        <div className="flex items-center w-full md:w-auto md:max-w-md bg-transparent py-1">
-          <Search className="text-gray-400 mr-2.5" size={18} />
+    <div className="bg-white rounded-xl m-2 md:m-0 border border-gray-200 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center bg-gray-50 px-3 py-2 rounded-md w-full max-w-md">
+          <Search className="text-gray-400 mr-2" size={18} />
           <input
             type="text"
+            placeholder="Search by name, email, or ID..."
+            className="bg-transparent outline-none text-sm w-full text-gray-700 placeholder-gray-500"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search employees by name, role, ID..."
-            className="text-sm outline-none placeholder-gray-500 bg-transparent w-full"
           />
-        </div>
-        <div className="flex items-center space-x-2 mt-2 md:mt-0">
-          <button className="flex items-center text-sm px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
-            <Filter size={15} className="mr-1.5" />
-            Filter
-          </button>
-          <button className="p-2 rounded-md bg-gray-100 hover:bg-gray-200">
-            <List size={18} className="text-gray-700" />
-          </button>
-          <button className="p-2 rounded-md bg-white border border-gray-300 hover:bg-gray-50">
-            <LayoutGrid size={18} className="text-gray-700" />
-          </button>
         </div>
       </div>
 
-      <div className="mt-4 bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-sm">
-        <table className="w-full text-left text-sm min-w-[800px]"> {/* Increased min-width */}
-          <thead className="bg-gray-50 text-gray-600">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[700px]">
+          <thead className="bg-gray-50 text-xs text-gray-600 uppercase tracking-wider">
             <tr>
-              <th className="px-4 py-3 w-12">
-                 <input 
+              <th className="p-4 text-left w-10">
+                <input 
                   type="checkbox" 
                   className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                   onChange={handleSelectAll}
                   checked={selectedItems.length === currentData.length && currentData.length > 0}
                 />
               </th>
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Employee ID</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Teams</th>
-              <th className="px-4 py-3 w-12"></th>
+              <th className="p-4 text-left">Employee</th>
+              <th className="p-4 text-left">User ID (Clerk)</th>
+              <th className="p-4 text-left">Last Sign In</th>
+              <th className="p-4 text-left">Joined Date</th>
+              <th className="p-4 text-right w-16">Actions</th>
             </tr>
           </thead>
-          <tbody className="text-gray-700">
+          <tbody className="divide-y divide-gray-200 text-sm text-gray-700">
             {currentData.map((user, index) => (
-              <tr key={user.id} className="border-t border-gray-200 hover:bg-gray-50">
+              <tr key={user.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
-                   <input 
+                  <input 
                     type="checkbox" 
                     className="form-checkbox h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                     checked={selectedItems.includes(user.id)}
@@ -171,40 +178,32 @@ const EmployeeTable: React.FC = () => {
                   />
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="relative w-9 h-9 sm:w-10 sm:h-10">
-                      <Image
-                        src={user.avatar}
-                        alt={user.name}
-                        width={40}
-                        height={40}
-                        className="w-full h-full rounded-full object-cover"
-                      />
-                      {user.status === "Active" && (
-                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                      )}
-                    </div>
+                  <div className="flex items-center">
+                    <Image
+                      src={user.imageUrl || '/default-avatar.png'} 
+                      alt={`${user.firstName} ${user.lastName}`}
+                      width={32}
+                      height={32}
+                      className="rounded-full mr-3"
+                    />
                     <div>
-                      <div className="font-medium text-gray-800">{user.name}</div>
-                      <div className="text-gray-500 text-xs">{user.email}</div>
+                      <div className="font-medium text-gray-800">
+                        {user.firstName || ''} {user.lastName || ''}
+                      </div>
+                      <div className="text-xs text-gray-500">{user.primaryEmail || 'No email'}</div>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-medium text-gray-700">{user.id}</span>
+                  <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-medium text-gray-700">
+                    {user.id}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-gray-800">{user.role}</div>
-                  <div className="text-xs text-gray-500">{user.type}</div>
+                  {user.lastSignInAt ? new Date(user.lastSignInAt).toLocaleDateString() : 'N/A'}
                 </td>
                 <td className="px-4 py-3">
-                  <div className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full font-medium ${getStatusStyles(user.statusColor)}`}>
-                    <span className={`w-2 h-2 rounded-full mr-1.5 ${getStatusDotStyles(user.statusColor)}`} />
-                    {user.status}
-                  </div>
-                </td>
-                <td className="px-4 py-3 font-medium">
-                  <span className="bg-gray-100 px-2.5 py-1 rounded-md text-xs font-medium text-gray-700">{user.team}</span>
+                  {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                 </td>
                 <td className="px-4 py-3 text-right relative">
                   <button 
@@ -219,17 +218,15 @@ const EmployeeTable: React.FC = () => {
                       className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-md shadow-lg text-xs z-10 py-1"
                     >
                       <a href="#" className="block px-3 py-1.5 hover:bg-gray-100 text-gray-700">View Details</a>
-                      <a href="#" className="block px-3 py-1.5 hover:bg-gray-100 text-gray-700">Edit Employee</a>
-                      <a href="#" className="block px-3 py-1.5 hover:bg-gray-100 text-red-600">Deactivate</a>
                     </div>
                   )}
                 </td>
               </tr>
             ))}
-            {currentData.length === 0 && (
+            {currentData.length === 0 && !isLoading && (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-gray-500">
-                  No employees found.
+                <td colSpan={6} className="text-center py-10 text-gray-500">
+                  No employees found matching your search.
                 </td>
               </tr>
             )}

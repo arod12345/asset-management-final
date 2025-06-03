@@ -37,9 +37,9 @@ const Topbar: React.FC<TopbarProps> = ({ setIsMobileSidebarOpen }) => {
 
         {/* Icons section */}
         <div className="flex items-center space-x-4 md:space-x-6">
-          <button className="text-gray-500 hover:text-gray-700">
+          {/* <button className="text-gray-500 hover:text-gray-700">
             <Settings size={20} />
-          </button>
+          </button> */}
           <button className="relative text-gray-500 hover:text-gray-700">
             <Bell size={20} />
             {/* Optional: Notification dot */}
@@ -60,7 +60,7 @@ const Topbar: React.FC<TopbarProps> = ({ setIsMobileSidebarOpen }) => {
           />
 
           {/* Clerk User Button */}
-          <UserButton afterSignOutUrl="/sign-in" />
+          <UserButton afterSignOutUrl="/" />
         </div>
       </div>
       {/* Bottom border line */}

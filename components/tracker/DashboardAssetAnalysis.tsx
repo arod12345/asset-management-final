@@ -1,104 +1,148 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import {
-    Filter,
-    List,
-    LayoutGrid,
-    Search,
-    MoreVertical,
-    ArrowLeft,
-    ArrowRight,
-    ExternalLink, // For view img
-  } from "lucide-react";
+  Filter,
+  List,
+  LayoutGrid,
+  Search,
+  MoreVertical,
+  ArrowLeft,
+  ArrowRight,
+  ExternalLink,
+  Loader2, 
+  AlertTriangle,
+} from "lucide-react";
+import { useAuth } from "@clerk/nextjs"; 
 
-interface Asset {
+interface ApiAsset {
+  id: string; 
+  title: string;
+  model: string;
+  serialNumber: string;
+  imageUrl?: string | null;
+  description: string;
+  status: string; 
+  latitude?: number | null;
+  longitude?: number | null;
+  clerkOrganizationId: string;
+  assignedToClerkUserId?: string | null;
+  assignedToDbUserId?: string | null;
+  createdAt: string; 
+  updatedAt: string; 
+  assignedTo?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    imageUrl?: string | null;
+    clerkUserId?: string | null;
+  } | null;
+}
+
+interface DisplayAsset {
+  id: string; 
+  name: string; 
+  assetIdDisplay: string; 
+  pictureUrl?: string | null;
+  status: string;
+  statusColor: "green" | "red" | "yellow" | "gray";
+  assigneeTeam: string; 
+}
+
+interface StatusChartData {
   name: string;
-  id: string;
-  picture: string;
-  status: "Active" | "Inactive";
-  AssigneeTeam: string;
-  statusColor: "green" | "red";
+  value: number;
 }
 
 const DashboardAssetAnalysis: React.FC = () => {
+  const [assets, setAssets] = useState<DisplayAsset[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const assetsPerPage = 5; // Adjusted for dashboard view
+  const assetsPerPage = 5;
   const [activeMenuIndex, setActiveMenuIndex] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const { orgId } = useAuth(); 
+  const [statusChartData, setStatusChartData] = useState<StatusChartData[]>([]);
 
+  useEffect(() => {
+    const fetchAssets = async () => {
+      if (!orgId) {
+        setIsLoading(false); 
+        setAssets([]); 
+        return;
+      }
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/assets`, { credentials: 'include' });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch assets: ${response.status} ${response.statusText}`);
+        }
+        const apiAssets: ApiAsset[] = await response.json();
+        
+        const displayAssets = apiAssets.map(asset => {
+          let statusColor: DisplayAsset['statusColor'] = 'gray';
+          switch (asset.status.toLowerCase()) {
+            case 'active': statusColor = 'green'; break;
+            case 'inactive': statusColor = 'red'; break;
+            case 'maintenance': statusColor = 'yellow'; break;
+            default: statusColor = 'gray';
+          }
 
-  const assets: Asset[] = [ // Using the same mock data as AssetTable for consistency
-    {
-      name: "Macbook Pro 16\"",
-      id: "#12FC4V56979",
-      picture: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800",
-      status: "Active",
-      AssigneeTeam: "Marketing",
-      statusColor: "green",
-    },
-    {
-      name: "Dell XPS 13",
-      id: "#88FCV1234",
-      picture: "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=800",
-      status: "Inactive",
-      AssigneeTeam: "Design",
-      statusColor: "red",
-    },
-    {
-      name: "iPhone 15 Pro",
-      id: "#19KD8210",
-      picture: "https://images.unsplash.com/photo-1695026049309-a055ad63f097?auto=format&fit=crop&w=800",
-      status: "Active",
-      AssigneeTeam: "Engineering",
-      statusColor: "green",
-    },
-    {
-      name: "Office Chair Ergo",
-      id: "#45AC2000",
-      picture: "https://images.unsplash.com/photo-1580480055273-228ff5382d6d?auto=format&fit=crop&w=800",
-      status: "Inactive",
-      AssigneeTeam: "HR",
-      statusColor: "red",
-    },
-    {
-      name: "Sony WH-1000XM5",
-      id: "#93VU1029",
-      picture: "https://images.unsplash.com/photo-1629039922688-7a0df9a4dc8c?auto=format&fit=crop&w=800",
-      status: "Active",
-      AssigneeTeam: "Engineering",
-      statusColor: "green",
-    },
-    {
-      name: "Samsung Monitor 27\"",
-      id: "#54FR9210",
-      picture: "https://images.unsplash.com/photo-1550745165-9bc0b252726c?auto=format&fit=crop&w=800",
-      status: "Inactive",
-      AssigneeTeam: "Quality",
-      statusColor: "red",
-    },
-  ];
+          let assigneeName = "Unassigned";
+          if (asset.assignedTo) {
+            assigneeName = `${asset.assignedTo.firstName || ''} ${asset.assignedTo.lastName || ''}`.trim();
+            if (!assigneeName && asset.assignedTo.email) assigneeName = asset.assignedTo.email;
+            if (!assigneeName && asset.assignedTo.clerkUserId) assigneeName = `User (${asset.assignedTo.clerkUserId.substring(0,5)}...)`;
+            if (!assigneeName) assigneeName = "Assigned (No Name)";
+          } else if (asset.assignedToClerkUserId) {
+            assigneeName = `User ID: ${asset.assignedToClerkUserId.substring(0,8)}...`;
+          }
+
+          return {
+            id: asset.id,
+            name: asset.title,
+            assetIdDisplay: asset.serialNumber,
+            pictureUrl: asset.imageUrl,
+            status: asset.status,
+            statusColor: statusColor,
+            assigneeTeam: assigneeName, 
+          };
+        });
+        setAssets(displayAssets);
+
+        // Process data for status distribution chart from API assets
+        const statusCounts: { [key: string]: number } = {};
+        apiAssets.forEach(asset => { 
+          statusCounts[asset.status] = (statusCounts[asset.status] || 0) + 1;
+        });
+        const chartData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+        setStatusChartData(chartData);
+
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An unknown error occurred");
+        console.error(err);
+      }
+      setIsLoading(false);
+    };
+
+    fetchAssets();
+  }, [orgId]); 
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setActiveMenuIndex(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSelectItem = (id: string) => {
-    setSelectedItems(prev => 
-      prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
-    );
+    setSelectedItems(prev => prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]);
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,16 +154,12 @@ const DashboardAssetAnalysis: React.FC = () => {
   };
 
   const filteredAssets = assets.filter((asset) =>
-    `${asset.name} ${asset.id} ${asset.AssigneeTeam}`
+    `${asset.name} ${asset.assetIdDisplay} ${asset.assigneeTeam}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
   );
   const totalPages = Math.ceil(filteredAssets.length / assetsPerPage);
-
-  const currentData = filteredAssets.slice(
-    (currentPage - 1) * assetsPerPage,
-    currentPage * assetsPerPage
-  );
+  const currentData = filteredAssets.slice((currentPage - 1) * assetsPerPage, currentPage * assetsPerPage);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -128,8 +168,27 @@ const DashboardAssetAnalysis: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="px-0 md:px-0 lg:px-0 flex items-center justify-center min-h-[300px] bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
+        <Loader2 className="animate-spin text-gray-500" size={32} />
+        <p className="ml-2 text-gray-500">Loading asset analysis...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-0 md:px-0 lg:px-0 flex flex-col items-center justify-center min-h-[300px] bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm text-red-600">
+        <AlertTriangle size={32} className="mb-2" />
+        <p className="font-semibold">Error loading data</p>
+        <p className="text-sm text-red-500">{error}</p>
+      </div>
+    );
+  }
+  
   return (
-    <div className="px-0 md:px-0 lg:px-0"> {/* Container padding handled by parent page */}
+    <div className="px-0 md:px-0 lg:px-0"> 
       <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm">
         <div className="mb-4 sm:mb-5">
           <h3 className="text-lg font-semibold text-gray-900">Asset Analysis</h3>
@@ -171,13 +230,14 @@ const DashboardAssetAnalysis: React.FC = () => {
                     className="form-checkbox h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                     onChange={handleSelectAll}
                     checked={selectedItems.length === currentData.length && currentData.length > 0}
+                    disabled={currentData.length === 0} 
                   />
                 </th>
                 <th className="px-3 sm:px-4 py-3">Name</th>
                 <th className="px-3 sm:px-4 py-3">Asset ID</th>
                 <th className="px-3 sm:px-4 py-3 hidden md:table-cell">Picture</th>
                 <th className="px-3 sm:px-4 py-3">Status</th>
-                <th className="px-3 sm:px-4 py-3 hidden lg:table-cell">Assignee Team</th>
+                <th className="px-3 sm:px-4 py-3 hidden lg:table-cell">Assignee</th>
                 <th className="px-3 sm:px-4 py-3 w-10 sm:w-12"></th>
               </tr>
             </thead>
@@ -196,28 +256,38 @@ const DashboardAssetAnalysis: React.FC = () => {
                     <div className="font-medium text-gray-800 text-xs sm:text-sm">{asset.name}</div>
                   </td>
                   <td className="px-3 sm:px-4 py-3">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-600">{asset.id}</span>
+                    <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-600">{asset.assetIdDisplay}</span>
                   </td>
                   <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
-                    <a
-                      href={asset.picture}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center text-blue-500 font-medium text-xs hover:text-blue-600 hover:underline"
-                    >
-                      View
-                      <ExternalLink size={10} className="ml-0.5" />
-                    </a>
+                    {asset.pictureUrl ? (
+                      <a
+                        href={asset.pictureUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center text-blue-500 font-medium text-xs hover:text-blue-600 hover:underline"
+                      >
+                        View
+                        <ExternalLink size={10} className="ml-0.5" />
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-400">No Image</span>
+                    )}
                   </td>
                   <td className="px-3 sm:px-4 py-3">
                     <div
-                      className={`inline-flex items-center text-[11px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${
-                        asset.statusColor === "green" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                      className={`inline-flex items-center text-[11px] sm:text-xs px-2 py-0.5 rounded-full font-medium ${ 
+                        asset.statusColor === 'green' ? 'bg-green-100 text-green-700' :
+                        asset.statusColor === 'red'   ? 'bg-red-100 text-red-700' :
+                        asset.statusColor === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
                       }`}
                     >
                       <span
-                        className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                          asset.statusColor === "green" ? "bg-green-500" : "bg-red-500"
+                        className={`w-1.5 h-1.5 rounded-full mr-1 ${ 
+                          asset.statusColor === 'green' ? 'bg-green-500' :
+                          asset.statusColor === 'red'   ? 'bg-red-500' :
+                          asset.statusColor === 'yellow' ? 'bg-yellow-500' :
+                          'bg-gray-500'
                         }`}
                       ></span>
                       {asset.status}
@@ -225,7 +295,7 @@ const DashboardAssetAnalysis: React.FC = () => {
                   </td>
                   <td className="px-3 sm:px-4 py-3 font-medium hidden lg:table-cell">
                   <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-medium text-gray-600">
-                    {asset.AssigneeTeam}
+                    {asset.assigneeTeam}
                   </span>
                   </td>
                   <td className="px-3 sm:px-4 py-3 text-right relative">
@@ -240,17 +310,17 @@ const DashboardAssetAnalysis: React.FC = () => {
                         ref={dropdownRef}
                         className="absolute right-0 mt-1 w-28 bg-white border border-gray-200 rounded-md shadow-lg text-xs z-10 py-1"
                       >
-                        <a href="#" className="block px-2.5 py-1.5 hover:bg-gray-100 text-gray-700">Details</a>
+                        <a href={`/assets/${asset.id}`} className="block px-2.5 py-1.5 hover:bg-gray-100 text-gray-700">Details</a>
                         <a href="#" className="block px-2.5 py-1.5 hover:bg-gray-100 text-red-600">Delete</a>
                       </div>
                     )}
                   </td>
                 </tr>
               ))}
-               {currentData.length === 0 && (
+               {currentData.length === 0 && !isLoading && (
                 <tr>
                   <td colSpan={7} className="text-center py-8 text-gray-500 text-sm">
-                    No assets found.
+                    No assets found matching your criteria.
                   </td>
                 </tr>
               )}

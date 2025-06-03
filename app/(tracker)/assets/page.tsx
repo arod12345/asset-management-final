@@ -17,7 +17,7 @@ export default function AssetsPage() {
 
   return (
     <div className="w-full">
-      <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      {/* <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <h2 className="text-md font-semibold text-gray-800 dark:text-gray-200">Current Organization: {organization?.name || "None"}</h2>
         <OrganizationSwitcher
             hidePersonal={true}
@@ -33,7 +33,7 @@ export default function AssetsPage() {
               }
             }}
         />
-      </div>
+      </div> */}
 
       <AssetPageHeader
         activeTab={activeTab}

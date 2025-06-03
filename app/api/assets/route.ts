@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import clerkNodeSDK from '@clerk/clerk-sdk-node';
+import { auth, clerkClient } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { getUserById, createUser } from '@/lib/users';
@@ -55,7 +54,7 @@ export async function POST(req: Request) {
       const { user: assignee } = await getUserById({ clerkUserId: assignedToClerkUserId });
       if (!assignee) {
         try {
-          const clerkUser = await clerkNodeSDK.users.getUser(assignedToClerkUserId);
+          const clerkUser = await clerkClient.users.getUser(assignedToClerkUserId);
           if (clerkUser) {
             const newUser = {
               clerkUserId: assignedToClerkUserId,
@@ -95,6 +94,25 @@ export async function POST(req: Request) {
         assignedToDbUserId: assignedToDbUserId || null,
       },
     });
+
+    // Create notification if asset is assigned
+    if (asset.assignedToClerkUserId && asset.id && asset.title) {
+      try {
+        await prisma.notification.create({
+          data: {
+            message: `Asset "${asset.title}" has been assigned to you.`,
+            recipientClerkUserId: asset.assignedToClerkUserId,
+            recipientDbUserId: asset.assignedToDbUserId!, // Add non-null assertion if confident, or handle potential null
+            assetId: asset.id,
+            type: 'asset_assignment',
+          },
+        });
+        console.log(`[ASSETS_POST] Notification created for user ${asset.assignedToClerkUserId} regarding asset ${asset.id}`);
+      } catch (notificationError) {
+        // Log the error but don't let it fail the main asset creation response
+        console.error(`[ASSETS_POST] Failed to create notification for asset ${asset.id}:`, notificationError);
+      }
+    }
 
     return NextResponse.json(asset, { status: 201, headers: { 'Cache-Control': 'no-store' } });
   } catch (error: unknown) {

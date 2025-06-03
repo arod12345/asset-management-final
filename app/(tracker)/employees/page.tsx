@@ -1,14 +1,14 @@
 "use client";
 import React, { useState } from "react";
 import EmployeeTable from "@/components/tracker/EmployeeTable";
-import EmployePageHeader from "@/components/tracker/EmployePageHeader"; // Note: typo in original filename "Employe"
+import EmployeePageHeader from "@/components/tracker/EmployeePageHeader"; // Corrected typo
 
 export default function EmployeesPage() {
   const [activeTab, setActiveTab] = useState("All Employees");
 
   return (
     <div className="w-full">
-      <EmployePageHeader // Renamed for consistency if you prefer EmployeePageHeader
+      <EmployeePageHeader 
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
